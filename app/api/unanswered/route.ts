@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter - keep only conversations where last message is from user
+    // and that message was sent more than 5 minutes ago (to allow Maya time to respond)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const unansweredConvIds = Object.entries(lastMsgByConv)
-      .filter(([, msg]) => msg.role === 'user')
+      .filter(([, msg]) => msg.role === 'user' && msg.created_at < fiveMinutesAgo)
       .map(([convId]) => convId)
 
     if (unansweredConvIds.length === 0) {
