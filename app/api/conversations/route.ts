@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   const startDate = searchParams.get('startDate') // ISO date string
   const endDate = searchParams.get('endDate') // ISO date string
+  const search = searchParams.get('search')?.trim() || ''
 
   try {
     if (type === 'posting') {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
       let countQuery = supabase.from('gig_postings').select('*', { count: 'exact', head: true })
       if (startDate) countQuery = countQuery.gte('created_at', startDate)
       if (endDate) countQuery = countQuery.lte('created_at', `${endDate}T23:59:59.999Z`)
+      if (search) countQuery = countQuery.ilike('title', `%${search}%`)
       const { count: totalCount } = await countQuery
 
       // Fetch page
@@ -30,6 +32,7 @@ export async function GET(request: NextRequest) {
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
       if (startDate) query = query.gte('created_at', startDate)
       if (endDate) query = query.lte('created_at', `${endDate}T23:59:59.999Z`)
+      if (search) query = query.ilike('title', `%${search}%`)
 
       const { data: gigPostings, error } = await query
       if (error) throw error
@@ -79,7 +82,11 @@ export async function GET(request: NextRequest) {
         type: 'posting' as const,
         metadata: {
           candidatesMatched: gig.candidates_matched || 0,
-          candidatesReached: reachoutCounts[gig.id] || 0
+          candidatesReached: reachoutCounts[gig.id] || 0,
+          budgetMin: gig.budget_min || null,
+          budgetMax: gig.budget_max || null,
+          budgetType: gig.budget_type || null,
+          currency: gig.currency || null,
         }
       }))
 

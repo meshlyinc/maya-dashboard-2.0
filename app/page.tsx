@@ -12,6 +12,7 @@ import TimeFilterSelector from '@/components/TimeFilterSelector'
 import UserSearch from '@/components/UserSearch'
 import UserProfileModal from '@/components/UserProfileModal'
 import UnansweredModal from '@/components/UnansweredModal'
+import ConnectionsModal from '@/components/ConnectionsModal'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [detailConversationId, setDetailConversationId] = useState<string | null>(null)
   const [showUnanswered, setShowUnanswered] = useState(false)
+  const [showConnections, setShowConnections] = useState(false)
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
@@ -215,13 +217,16 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500 mt-2">Click to view conversations</p>
           </div>
 
-          <div className="bg-white rounded-lg p-6">
+          <div
+            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setShowConnections(true)}
+          >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Connections</h3>
               <Link2 className="w-5 h-5 text-pink-500" />
             </div>
             <p className="text-3xl font-semibold text-gray-900">{metrics.totalConnections}</p>
-            <p className="text-xs text-gray-500 mt-2">Successful connections</p>
+            <p className="text-xs text-gray-500 mt-2">Click to view connections</p>
           </div>
 
           <div className="bg-white rounded-lg p-6">
@@ -284,6 +289,14 @@ export default function Dashboard() {
         <UnansweredModal
           onClose={() => setShowUnanswered(false)}
           onSelectConversation={(id) => { setSelectedConversation(id) }}
+          onSelectUser={(userId) => { setSelectedUserId(userId) }}
+        />
+      )}
+
+      {/* Connections Modal */}
+      {showConnections && (
+        <ConnectionsModal
+          onClose={() => setShowConnections(false)}
           onSelectUser={(userId) => { setSelectedUserId(userId) }}
         />
       )}

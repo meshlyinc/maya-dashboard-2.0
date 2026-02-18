@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { X, MessageSquare, User, Phone } from 'lucide-react'
+import { X, MessageSquare, User, Phone, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { Pagination, DateRangeFilter } from './ListControls'
 
@@ -19,6 +19,10 @@ interface ConversationItem {
   metadata?: {
     candidatesMatched: number
     candidatesReached: number
+    budgetMin?: number | null
+    budgetMax?: number | null
+    budgetType?: string | null
+    currency?: string | null
   }
 }
 
@@ -36,6 +40,17 @@ export default function ConversationList({ type, onClose, onSelectConversation }
   const [totalItems, setTotalItems] = useState(0)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   const fetchConversations = useCallback(async () => {
     setLoading(true)
@@ -43,6 +58,7 @@ export default function ConversationList({ type, onClose, onSelectConversation }
       const params = new URLSearchParams({ type, page: String(page) })
       if (startDate) params.set('startDate', startDate)
       if (endDate) params.set('endDate', endDate)
+      if (debouncedSearch) params.set('search', debouncedSearch)
       const res = await fetch(`/api/conversations?${params}`)
       const data = await res.json()
       setConversations(data.items || [])
@@ -53,7 +69,7 @@ export default function ConversationList({ type, onClose, onSelectConversation }
     } finally {
       setLoading(false)
     }
-  }, [type, page, startDate, endDate])
+  }, [type, page, startDate, endDate, debouncedSearch])
 
   useEffect(() => {
     fetchConversations()
@@ -84,6 +100,22 @@ export default function ConversationList({ type, onClose, onSelectConversation }
             <X className="w-6 h-6" />
           </button>
         </div>
+
+        {/* Search (postings only) */}
+        {type === 'posting' && (
+          <div className="px-6 pt-3 pb-2 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by job title..."
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Date Filter */}
         <div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
@@ -141,6 +173,16 @@ export default function ConversationList({ type, onClose, onSelectConversation }
                             <span>&middot;</span>
                             <span className="text-blue-600 font-medium">
                               {conv.metadata.candidatesMatched} matched
+                            </span>
+                          </>
+                        )}
+                        {conv.metadata?.budgetMin != null && (
+                          <>
+                            <span>&middot;</span>
+                            <span className="text-green-600 font-medium">
+                              {conv.metadata.currency || '$'}{conv.metadata.budgetMin.toLocaleString()}
+                              {conv.metadata.budgetMax != null && ` - ${conv.metadata.currency || '$'}${conv.metadata.budgetMax.toLocaleString()}`}
+                              {conv.metadata.budgetType && ` /${conv.metadata.budgetType}`}
                             </span>
                           </>
                         )}

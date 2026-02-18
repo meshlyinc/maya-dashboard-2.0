@@ -152,17 +152,8 @@ export default function UserProfileModal({ userId, onClose, onSelectConversation
     }
   }
 
-  if (loading || !userData) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8">
-          <div className="text-gray-500">Loading user profile...</div>
-        </div>
-      </div>
-    )
-  }
-
   const filteredActivities = useMemo(() => {
+    if (!userData) return []
     const all = userData.activities[activeTab] || []
     return all.filter((a) => {
       const date = a.createdAt
@@ -185,6 +176,16 @@ export default function UserProfileModal({ userId, onClose, onSelectConversation
   const handleActivityStartDate = (d: string) => { setActivityStartDate(d); setActivityPage(1) }
   const handleActivityEndDate = (d: string) => { setActivityEndDate(d); setActivityPage(1) }
   const handleClearActivityDates = () => { setActivityStartDate(''); setActivityEndDate(''); setActivityPage(1) }
+
+  if (loading || !userData) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8">
+          <div className="text-gray-500">Loading user profile...</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
