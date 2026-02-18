@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { X, MessageSquare, User, Phone, Search } from 'lucide-react'
+import { X, MessageSquare, User, Phone, Search, Eye, UserCheck, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
 import { Pagination, DateRangeFilter } from './ListControls'
 
@@ -16,6 +16,9 @@ interface ConversationItem {
   lastMessageAt: string
   createdAt: string
   type: string
+  conversationId?: string | null
+  conversationMessageCount?: number
+  userId?: string | null
   metadata?: {
     candidatesMatched: number
     candidatesReached: number
@@ -30,9 +33,10 @@ interface ConversationListProps {
   type: 'posting' | 'reachout'
   onClose: () => void
   onSelectConversation: (id: string) => void
+  onSelectUser?: (userId: string) => void
 }
 
-export default function ConversationList({ type, onClose, onSelectConversation }: ConversationListProps) {
+export default function ConversationList({ type, onClose, onSelectConversation, onSelectUser }: ConversationListProps) {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -139,8 +143,10 @@ export default function ConversationList({ type, onClose, onSelectConversation }
               {conversations.map(conv => (
                 <div
                   key={conv.id}
-                  onClick={() => onSelectConversation(conv.id)}
-                  className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-sm cursor-pointer transition-all"
+                  onClick={type !== 'posting' ? () => onSelectConversation(conv.id) : undefined}
+                  className={`border border-gray-200 rounded-lg p-4 transition-all ${
+                    type !== 'posting' ? 'hover:border-blue-500 hover:shadow-sm cursor-pointer' : ''
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -161,6 +167,15 @@ export default function ConversationList({ type, onClose, onSelectConversation }
                               <Phone className="w-3.5 h-3.5 text-gray-400" />
                               <span className="text-sm text-gray-500">{conv.userPhone}</span>
                             </div>
+                          )}
+                          {conv.userId && onSelectUser && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onSelectUser(conv.userId!) }}
+                              className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              View Profile
+                            </button>
                           )}
                         </div>
                       )}
@@ -202,6 +217,35 @@ export default function ConversationList({ type, onClose, onSelectConversation }
                       {conv.status || 'Unknown'}
                     </span>
                   </div>
+
+                  {/* CTAs for posting cards */}
+                  {type === 'posting' && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      {conv.conversationMessageCount != null && conv.conversationMessageCount > 0 && (
+                        <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-500">
+                          <MessageSquare className="w-3 h-3" />
+                          <span>{conv.conversationMessageCount} messages in conversation</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => conv.conversationId && onSelectConversation(conv.conversationId)}
+                          disabled={!conv.conversationId}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View Convo
+                        </button>
+                        <button
+                          onClick={() => onSelectConversation(conv.id)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-green-600 text-white hover:bg-green-700 shadow-sm"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          View Reachouts
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

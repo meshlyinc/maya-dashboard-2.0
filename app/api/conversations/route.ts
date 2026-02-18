@@ -69,6 +69,20 @@ export async function GET(request: NextRequest) {
         }
       })
 
+      // Look up the conversation linked to each gig posting via conversations.gig_id
+      const gigConvMap: Record<string, { id: string; messageCount: number }> = {}
+      if (gigIds.length > 0) {
+        const { data: linkedConvs } = await supabase
+          .from('conversations')
+          .select('id, gig_id, message_count')
+          .in('gig_id', gigIds)
+        linkedConvs?.forEach((conv: any) => {
+          if (conv.gig_id) {
+            gigConvMap[conv.gig_id] = { id: conv.id, messageCount: conv.message_count || 0 }
+          }
+        })
+      }
+
       const conversations = gigPostings.map(gig => ({
         id: gig.id,
         title: gig.title || `Job Posting ${gig.id.slice(0, 8)}`,
@@ -80,6 +94,9 @@ export async function GET(request: NextRequest) {
         lastMessageAt: gig.updated_at,
         createdAt: gig.created_at,
         type: 'posting' as const,
+        userId: gig.hirer_id || null,
+        conversationId: gigConvMap[gig.id]?.id || null,
+        conversationMessageCount: gigConvMap[gig.id]?.messageCount || 0,
         metadata: {
           candidatesMatched: gig.candidates_matched || 0,
           candidatesReached: reachoutCounts[gig.id] || 0,
@@ -149,6 +166,7 @@ export async function GET(request: NextRequest) {
           lastMessageAt: match.outreach_sent_at || match.updated_at,
           createdAt: match.created_at,
           type: 'reachout' as const,
+          userId: candidateUserId || null,
         }
       })
 

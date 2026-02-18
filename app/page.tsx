@@ -264,6 +264,7 @@ export default function Dashboard() {
           type={selectedType}
           onClose={closeConversationList}
           onSelectConversation={openConversation}
+          onSelectUser={openUserProfile}
         />
       )}
 
