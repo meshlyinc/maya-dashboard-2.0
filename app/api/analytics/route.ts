@@ -52,16 +52,18 @@ export async function GET(request: NextRequest) {
       // Placeholder for users count (computed separately below)
       Promise.resolve({ count: 0 }),
 
-      // Total messages (filtered by created_at)
+      // Total messages (only from non-archived conversations)
       supabase
         .from('messages')
-        .select('id', { count: 'exact', head: true })
+        .select('id, conversations!inner(id)', { count: 'exact', head: true })
+        .neq('conversations.status', 'archived')
         .gte('created_at', startDate.toISOString()),
 
-      // Total conversations (filtered by created_at)
+      // Total conversations (only non-archived)
       supabase
         .from('conversations')
         .select('id', { count: 'exact', head: true })
+        .neq('status', 'archived')
         .gte('created_at', startDate.toISOString()),
 
       // Postings (gig_postings table)
