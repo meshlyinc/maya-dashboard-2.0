@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, User, Bot, AlertCircle, UserCheck, MessageSquare, ChevronRight, Clock } from 'lucide-react'
+import { X, User, Bot, AlertCircle, UserCheck, MessageSquare, ChevronRight, Clock, Briefcase, CheckCircle, AlertTriangle, Star, MapPin, DollarSign, Zap, Paperclip, Tag, Wrench } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface ConvMessage {
@@ -26,6 +26,43 @@ interface ReachoutSummary {
   outreachSentAt: string
   respondedAt: string | null
   matchScore: number | null
+  matchReasons?: string[]
+  potentialConcerns?: string[]
+  fitSummary?: string | null
+}
+
+interface PostingDetails {
+  id?: string
+  title?: string
+  description?: string | null
+  jdStructured?: {
+    title?: string
+    deliverables?: string[]
+    projectScope?: string
+    skillsRequired?: string[]
+    [key: string]: any
+  } | null
+  mayaSummary?: string | null
+  idealCandidate?: string | null
+  skillsRequired?: string[]
+  skillsPreferred?: string[]
+  gigType?: string | null
+  workType?: string | null
+  location?: string | null
+  remoteOk?: boolean
+  budgetMin?: number | null
+  budgetMax?: number | null
+  budgetType?: string | null
+  currency?: string | null
+  experienceMin?: number | null
+  experienceMax?: number | null
+  seniority?: string | null
+  urgency?: string | null
+  duration?: string | null
+  candidatesMatched?: number
+  candidatesReached?: number
+  candidatesInterested?: number
+  status?: string
 }
 
 interface ConvData {
@@ -47,8 +84,10 @@ interface ConvData {
     totalReachouts?: number
     matchScore?: number
     matchReasons?: string[]
+    potentialConcerns?: string[]
     fitSummary?: string
   }
+  postingDetails?: PostingDetails | null
 }
 
 interface ConversationModalProps {
@@ -108,6 +147,153 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
     if (s.includes('hired') || s.includes('completed')) return 'bg-purple-100 text-purple-700'
     if (s.includes('declined') || s.includes('rejected')) return 'bg-red-100 text-red-700'
     return 'bg-gray-100 text-gray-700'
+  }
+
+  const renderPostingDetailsCard = (details: PostingDetails) => {
+    const jd = details.jdStructured
+    return (
+      <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Briefcase className="w-4 h-4 text-blue-600" />
+          <h4 className="text-sm font-semibold text-blue-900">Job Posting Details</h4>
+        </div>
+
+        {details.mayaSummary && (
+          <p className="text-sm text-gray-700 mb-3 italic">{details.mayaSummary}</p>
+        )}
+
+        {jd?.projectScope && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-gray-500 mb-1">Scope</p>
+            <p className="text-sm text-gray-700">{jd.projectScope}</p>
+          </div>
+        )}
+
+        {jd?.deliverables && jd.deliverables.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-gray-500 mb-1">Deliverables</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {jd.deliverables.map((d: string, i: number) => (
+                <li key={i} className="text-sm text-gray-700">{d}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(details.skillsRequired?.length || 0) > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-gray-500 mb-1">Required Skills</p>
+            <div className="flex flex-wrap gap-1.5">
+              {details.skillsRequired!.map((skill, i) => (
+                <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-medium">{skill}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(details.skillsPreferred?.length || 0) > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-gray-500 mb-1">Preferred Skills</p>
+            <div className="flex flex-wrap gap-1.5">
+              {details.skillsPreferred!.map((skill, i) => (
+                <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">{skill}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
+          {details.budgetMin != null && (
+            <span className="flex items-center gap-1">
+              <DollarSign className="w-3 h-3" />
+              {details.currency || '$'}{details.budgetMin.toLocaleString()}
+              {details.budgetMax != null && details.budgetMax !== details.budgetMin && ` - ${details.currency || '$'}${details.budgetMax.toLocaleString()}`}
+              {details.budgetType && ` /${details.budgetType}`}
+            </span>
+          )}
+          {details.workType && (
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {details.workType}{details.remoteOk && ' (Remote OK)'}
+            </span>
+          )}
+          {details.seniority && (
+            <span className="flex items-center gap-1">
+              <Star className="w-3 h-3" />
+              {details.seniority}
+            </span>
+          )}
+          {details.urgency && (
+            <span className="flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              {details.urgency}
+            </span>
+          )}
+          {details.gigType && <span>{details.gigType}</span>}
+        </div>
+
+        {(details.candidatesMatched != null || details.candidatesReached != null) && (
+          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-blue-100 text-xs text-gray-500">
+            {details.candidatesMatched != null && <span>{details.candidatesMatched} matched</span>}
+            {details.candidatesReached != null && <span>{details.candidatesReached} reached</span>}
+            {details.candidatesInterested != null && details.candidatesInterested > 0 && (
+              <span className="text-green-600 font-medium">{details.candidatesInterested} interested</span>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const renderMatchInfoCard = (meta: NonNullable<ConvData['metadata']>) => {
+    const hasContent = (meta.matchReasons?.length || 0) > 0 || (meta.potentialConcerns?.length || 0) > 0 || meta.fitSummary
+    if (!hasContent) return null
+
+    return (
+      <div className="border border-purple-200 bg-purple-50/50 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Star className="w-4 h-4 text-purple-600" />
+          <h4 className="text-sm font-semibold text-purple-900">Match Analysis</h4>
+          {meta.matchScore != null && (
+            <span className="ml-auto px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+              {Math.round(meta.matchScore * 100)}% match
+            </span>
+          )}
+        </div>
+
+        {meta.fitSummary && (
+          <p className="text-sm text-gray-700 mb-3 italic">{meta.fitSummary}</p>
+        )}
+
+        {(meta.matchReasons?.length || 0) > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1 mb-1">
+              <CheckCircle className="w-3 h-3 text-green-500" />
+              <p className="text-xs font-medium text-green-700">Strengths</p>
+            </div>
+            <ul className="space-y-1 ml-4">
+              {meta.matchReasons!.map((reason, i) => (
+                <li key={i} className="text-sm text-gray-700 list-disc">{reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(meta.potentialConcerns?.length || 0) > 0 && (
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <AlertTriangle className="w-3 h-3 text-amber-500" />
+              <p className="text-xs font-medium text-amber-700">Concerns</p>
+            </div>
+            <ul className="space-y-1 ml-4">
+              {meta.potentialConcerns!.map((concern, i) => (
+                <li key={i} className="text-sm text-gray-600 list-disc">{concern}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -200,11 +386,15 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
             </div>
           ) : conversation.type === 'posting' && conversation.reachouts ? (
             /* Posting view: show reachout summary cards */
-            conversation.reachouts.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No reachouts for this posting yet
-              </div>
-            ) : (
+            <div>
+              {/* Posting details card */}
+              {conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
+
+              {conversation.reachouts.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  No reachouts for this posting yet
+                </div>
+              ) : (
               <div className="space-y-3">
                 {conversation.reachouts.map((reachout) => {
                   const statusColor = getReachoutStatusColor(reachout.status)
@@ -249,6 +439,21 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                                 <span className="text-green-600 font-medium">Responded</span>
                               )}
                             </div>
+                            {reachout.fitSummary && (
+                              <p className="text-xs text-gray-500 italic mt-2">{reachout.fitSummary}</p>
+                            )}
+                            {(reachout.matchReasons?.length || 0) > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {reachout.matchReasons!.slice(0, 2).map((r, i) => (
+                                  <span key={i} className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-[10px]">{r.length > 60 ? r.slice(0, 60) + '...' : r}</span>
+                                ))}
+                                {(reachout.potentialConcerns?.length || 0) > 0 && (
+                                  <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[10px]">
+                                    {reachout.potentialConcerns![0].length > 60 ? reachout.potentialConcerns![0].slice(0, 60) + '...' : reachout.potentialConcerns![0]}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-3">
@@ -262,7 +467,8 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                   )
                 })}
               </div>
-            )
+              )}
+            </div>
           ) : conversation.messages.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-500 mb-2">No messages found</div>
@@ -275,9 +481,16 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
           ) : (
             /* Regular chat view for reachout/query types */
             <div className="space-y-4">
+              {/* Metadata cards above messages */}
+              {conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
+              {conversation.metadata && renderMatchInfoCard(conversation.metadata)}
+
               {conversation.messages.map(message => {
                 const isAssistant = message.role === 'assistant'
                 const isSystem = message.role === 'system'
+                const meta = message.metadata && typeof message.metadata === 'object' ? message.metadata : null
+                const hasAttachments = message.attachments && Array.isArray(message.attachments) && message.attachments.length > 0
+                const hasToolCalls = message.toolCalls && Array.isArray(message.toolCalls) && message.toolCalls.length > 0
 
                 return (
                   <div key={message.id} className="flex gap-3">
@@ -304,6 +517,11 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                         <span className="text-xs text-gray-500">
                           {safeFormatDate(message.createdAt, 'MMM d, h:mm a')}
                         </span>
+                        {meta?.original_type && meta.original_type !== 'new' && (
+                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-medium">
+                            {meta.original_type.replace(/_/g, ' ')}
+                          </span>
+                        )}
                       </div>
                       <div className={`text-sm whitespace-pre-wrap break-words ${
                         isSystem ? 'text-gray-500 italic' : 'text-gray-700'
@@ -320,6 +538,58 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                           return line ? <div key={idx}>{line}</div> : <br key={idx} />
                         })}
                       </div>
+
+                      {/* Attachments */}
+                      {hasAttachments && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {message.attachments!.map((att: any, i: number) => (
+                            <a
+                              key={i}
+                              href={att.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-md text-xs text-gray-700 transition-colors"
+                            >
+                              <Paperclip className="w-3 h-3" />
+                              {att.type || 'attachment'}{att.name ? `: ${att.name}` : ''}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Tool Calls */}
+                      {hasToolCalls && (
+                        <div className="mt-2 space-y-1">
+                          {message.toolCalls!.map((tc: any, i: number) => (
+                            <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-md text-xs text-amber-700">
+                              <Wrench className="w-3 h-3" />
+                              {tc.name || tc.function?.name || 'tool call'}
+                              {tc.function?.arguments && (
+                                <span className="text-amber-500 ml-1 truncate max-w-[200px]">
+                                  {typeof tc.function.arguments === 'string' ? tc.function.arguments.slice(0, 80) : JSON.stringify(tc.function.arguments).slice(0, 80)}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Metadata row */}
+                      {meta && Object.keys(meta).length > 0 && (
+                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                          {meta.source && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-500">
+                              <Tag className="w-2.5 h-2.5" />
+                              {meta.source.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                          {Object.entries(meta).filter(([k]) => k !== 'source' && k !== 'original_type').map(([key, value]) => (
+                            <span key={key} className="px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-500">
+                              {key}: {typeof value === 'string' ? value : JSON.stringify(value)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

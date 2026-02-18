@@ -95,6 +95,9 @@ export async function GET(
           outreachSentAt: match.outreach_sent_at || match.created_at,
           respondedAt: match.candidate_responded_at || null,
           matchScore: match.match_score,
+          matchReasons: match.match_reasons || [],
+          potentialConcerns: match.potential_concerns || [],
+          fitSummary: match.fit_summary || null,
         }
       }) || []
 
@@ -112,8 +115,29 @@ export async function GET(
         metadata: {
           candidatesMatched: gigPosting.candidates_matched || 0,
           candidatesReached: gigPosting.candidates_reached || 0,
-          totalReachouts: matches?.length || 0
-        }
+          totalReachouts: matches?.length || 0,
+        },
+        postingDetails: {
+          description: gigPosting.description || null,
+          jdStructured: gigPosting.jd_structured || null,
+          mayaSummary: gigPosting.maya_summary || null,
+          idealCandidate: gigPosting.ideal_candidate_description || null,
+          skillsRequired: gigPosting.skills_required || [],
+          skillsPreferred: gigPosting.skills_preferred || [],
+          gigType: gigPosting.gig_type || null,
+          workType: gigPosting.work_type || null,
+          location: gigPosting.location || null,
+          remoteOk: gigPosting.remote_ok,
+          budgetMin: gigPosting.budget_min,
+          budgetMax: gigPosting.budget_max,
+          budgetType: gigPosting.budget_type,
+          currency: gigPosting.currency,
+          experienceMin: gigPosting.experience_min,
+          experienceMax: gigPosting.experience_max,
+          seniority: gigPosting.seniority,
+          urgency: gigPosting.urgency,
+          duration: gigPosting.duration,
+        },
       }
 
       return NextResponse.json(response)
@@ -219,8 +243,9 @@ export async function GET(
         messages: allMessages,
         metadata: {
           matchScore: match.match_score,
-          matchReasons: match.match_reasons,
-          fitSummary: match.fit_summary,
+          matchReasons: match.match_reasons || [],
+          potentialConcerns: match.potential_concerns || [],
+          fitSummary: match.fit_summary || null,
         }
       }
 
@@ -265,6 +290,45 @@ export async function GET(
         toolCalls: msg.tool_calls
       })) || []
 
+      // If conversation is linked to a gig posting, fetch posting details
+      let postingDetails = null
+      if (conversation.gig_id) {
+        const { data: gig } = await supabase
+          .from('gig_postings')
+          .select('*')
+          .eq('id', conversation.gig_id)
+          .single()
+        if (gig) {
+          postingDetails = {
+            id: gig.id,
+            title: gig.title,
+            description: gig.description || null,
+            jdStructured: gig.jd_structured || null,
+            mayaSummary: gig.maya_summary || null,
+            idealCandidate: gig.ideal_candidate_description || null,
+            skillsRequired: gig.skills_required || [],
+            skillsPreferred: gig.skills_preferred || [],
+            gigType: gig.gig_type || null,
+            workType: gig.work_type || null,
+            location: gig.location || null,
+            remoteOk: gig.remote_ok,
+            budgetMin: gig.budget_min,
+            budgetMax: gig.budget_max,
+            budgetType: gig.budget_type,
+            currency: gig.currency,
+            experienceMin: gig.experience_min,
+            experienceMax: gig.experience_max,
+            seniority: gig.seniority,
+            urgency: gig.urgency,
+            duration: gig.duration,
+            candidatesMatched: gig.candidates_matched || 0,
+            candidatesReached: gig.candidates_reached || 0,
+            candidatesInterested: gig.candidates_interested || 0,
+            status: gig.status,
+          }
+        }
+      }
+
       const response = {
         id: conversation.id,
         title: conversation.title || `${(conversation.conversation_type || 'conversation').replace(/_/g, ' ')} ${conversation.id.slice(0, 8)}`,
@@ -276,7 +340,8 @@ export async function GET(
         type: 'query',
         conversationType: conversation.conversation_type,
         category: conversation.category,
-        messages: formattedMessages
+        messages: formattedMessages,
+        postingDetails,
       }
 
       return NextResponse.json(response)

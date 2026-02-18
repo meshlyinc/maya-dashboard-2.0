@@ -69,16 +69,23 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      // Look up the conversation linked to each gig posting via conversations.gig_id
+      // Look up the hirer's conversation for each gig posting
+      // Find conversations where user_id = hirer_id AND gig_id = posting id
       const gigConvMap: Record<string, { id: string; messageCount: number }> = {}
-      if (gigIds.length > 0) {
-        const { data: linkedConvs } = await supabase
+      if (gigIds.length > 0 && hirerIds.length > 0) {
+        // Query conversations that belong to any hirer AND are linked to any of these gig_ids
+        const { data: hirerConvs } = await supabase
           .from('conversations')
-          .select('id, gig_id, message_count')
+          .select('id, gig_id, user_id, message_count')
           .in('gig_id', gigIds)
-        linkedConvs?.forEach((conv: any) => {
+          .in('user_id', hirerIds)
+
+        hirerConvs?.forEach((conv: any) => {
           if (conv.gig_id) {
-            gigConvMap[conv.gig_id] = { id: conv.id, messageCount: conv.message_count || 0 }
+            // Prefer conversation with most messages
+            if (!gigConvMap[conv.gig_id] || (conv.message_count || 0) > gigConvMap[conv.gig_id].messageCount) {
+              gigConvMap[conv.gig_id] = { id: conv.id, messageCount: conv.message_count || 0 }
+            }
           }
         })
       }
