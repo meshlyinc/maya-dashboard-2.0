@@ -52,6 +52,8 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({})
   const [selectedFilter, setSelectedFilter] = useState('')
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({})
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
 
   // Debounce search input
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
       if (debouncedSearch) params.set('search', debouncedSearch)
       if (selectedStage) params.set('stage', selectedStage)
       if (selectedFilter) params.set('filter', selectedFilter)
+      if (selectedStatus) params.set('status', selectedStatus)
       const res = await fetch(`/api/conversations?${params}`)
       const data = await res.json()
       setConversations(data.items || [])
@@ -78,12 +81,13 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
       setTotalItems(data.totalItems || 0)
       if (data.stageCounts) setStageCounts(data.stageCounts)
       if (data.filterCounts) setFilterCounts(data.filterCounts)
+      if (data.statusCounts) setStatusCounts(data.statusCounts)
     } catch (error) {
       console.error('Failed to fetch conversations:', error)
     } finally {
       setLoading(false)
     }
-  }, [type, page, startDate, endDate, debouncedSearch, selectedStage, selectedFilter])
+  }, [type, page, startDate, endDate, debouncedSearch, selectedStage, selectedFilter, selectedStatus])
 
   useEffect(() => {
     fetchConversations()
@@ -95,6 +99,7 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const handleClearDates = () => { setStartDate(''); setEndDate(''); setPage(1) }
   const handleStageChange = (stage: string) => { setSelectedStage(prev => prev === stage ? '' : stage); setPage(1) }
   const handleFilterChange = (f: string) => { setSelectedFilter(prev => prev === f ? '' : f); setPage(1) }
+  const handleStatusChange = (s: string) => { setSelectedStatus(prev => prev === s ? '' : s); setPage(1) }
 
   const POSTING_STAGES = [
     { value: 'collecting_requirements', label: 'Collecting Requirements', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
@@ -105,6 +110,16 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const POSTING_FILTERS = [
     { value: 'card_sent', label: 'Card Sent', color: 'bg-orange-100 text-orange-800 border-orange-300' },
     { value: 'connected', label: 'Connected', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+  ]
+
+  const REACHOUT_STATUSES = [
+    { value: 'identified', label: 'Identified', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+    { value: 'outreach_sent', label: 'Outreach Sent', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+    { value: 'candidate_interested', label: 'Interested', color: 'bg-green-100 text-green-800 border-green-300' },
+    { value: 'negotiating', label: 'Negotiating', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    { value: 'connected', label: 'Connected', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+    { value: 'candidate_declined', label: 'Declined', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+    { value: 'passed', label: 'Passed', color: 'bg-red-100 text-red-700 border-red-300' },
   ]
 
   return (
@@ -206,6 +221,41 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
             {selectedFilter && (
               <button
                 onClick={() => { setSelectedFilter(''); setPage(1) }}
+                className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Reachout Status Filter Chips (reachout view) */}
+        {type === 'reachout' && (
+          <div className="px-6 pt-3 pb-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 mr-1">Status:</span>
+            {REACHOUT_STATUSES.map(s => (
+              <button
+                key={s.value}
+                onClick={() => handleStatusChange(s.value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  selectedStatus === s.value
+                    ? `${s.color} ring-2 ring-offset-1 ring-current`
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {s.label}
+                {statusCounts[s.value] != null && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    selectedStatus === s.value ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {statusCounts[s.value]}
+                  </span>
+                )}
+              </button>
+            ))}
+            {selectedStatus && (
+              <button
+                onClick={() => { setSelectedStatus(''); setPage(1) }}
                 className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 Clear

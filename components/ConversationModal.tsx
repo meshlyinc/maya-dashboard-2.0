@@ -505,24 +505,28 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
           ) : conversation.type === 'posting' && conversation.reachouts ? (
             /* Posting view: show reachout summary cards */
             (() => {
-              // Compute status counts for filter chips
+              // Predefined reachout statuses in order
+              const REACHOUT_STATUSES = [
+                { value: 'identified', label: 'Identified', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+                { value: 'outreach_sent', label: 'Outreach Sent', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+                { value: 'candidate_interested', label: 'Interested', color: 'bg-green-100 text-green-800 border-green-300' },
+                { value: 'negotiating', label: 'Negotiating', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                { value: 'connected', label: 'Connected', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+                { value: 'candidate_declined', label: 'Declined', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+                { value: 'passed', label: 'Passed', color: 'bg-red-100 text-red-700 border-red-300' },
+              ]
+
+              // Compute status counts
               const statusCounts: Record<string, number> = {}
               conversation.reachouts!.forEach(r => {
                 const s = r.status || 'unknown'
                 statusCounts[s] = (statusCounts[s] || 0) + 1
               })
-              const statusKeys = Object.keys(statusCounts).sort()
+              // Only show chips that have at least one reachout
+              const visibleStatuses = REACHOUT_STATUSES.filter(s => statusCounts[s.value] > 0)
               const filteredReachouts = selectedReachoutStatus
                 ? conversation.reachouts!.filter(r => r.status === selectedReachoutStatus)
                 : conversation.reachouts!
-
-              const REACHOUT_STATUS_COLORS: Record<string, string> = {
-                identified: 'bg-gray-100 text-gray-700 border-gray-300',
-                outreach_sent: 'bg-blue-100 text-blue-800 border-blue-300',
-                candidate_interested: 'bg-green-100 text-green-800 border-green-300',
-                passed: 'bg-red-100 text-red-700 border-red-300',
-                hired: 'bg-purple-100 text-purple-800 border-purple-300',
-              }
 
               return (
             <div>
@@ -530,24 +534,24 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
               {conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
 
               {/* Reachout status filter chips */}
-              {statusKeys.length > 1 && (
+              {visibleStatuses.length > 1 && (
                 <div className="flex items-center gap-2 flex-wrap mb-4 pb-3 border-b border-gray-100">
                   <span className="text-xs font-medium text-gray-500 mr-1">Status:</span>
-                  {statusKeys.map(s => (
+                  {visibleStatuses.map(s => (
                     <button
-                      key={s}
-                      onClick={() => setSelectedReachoutStatus(prev => prev === s ? '' : s)}
+                      key={s.value}
+                      onClick={() => setSelectedReachoutStatus(prev => prev === s.value ? '' : s.value)}
                       className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                        selectedReachoutStatus === s
-                          ? `${REACHOUT_STATUS_COLORS[s] || 'bg-gray-100 text-gray-700 border-gray-300'} ring-2 ring-offset-1 ring-current`
+                        selectedReachoutStatus === s.value
+                          ? `${s.color} ring-2 ring-offset-1 ring-current`
                           : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      {s.replace(/_/g, ' ')}
+                      {s.label}
                       <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                        selectedReachoutStatus === s ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
+                        selectedReachoutStatus === s.value ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
                       }`}>
-                        {statusCounts[s]}
+                        {statusCounts[s.value]}
                       </span>
                     </button>
                   ))}

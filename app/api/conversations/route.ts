@@ -243,6 +243,8 @@ export async function GET(request: NextRequest) {
         filterCounts,
       })
     } else {
+      const status = searchParams.get('status')?.trim() || ''
+
       // Count total
       let countQuery = supabase
         .from('matches')
@@ -250,6 +252,7 @@ export async function GET(request: NextRequest) {
         .not('outreach_message', 'is', null)
       if (startDate) countQuery = countQuery.gte('created_at', startDate)
       if (endDate) countQuery = countQuery.lte('created_at', `${endDate}T23:59:59.999Z`)
+      if (status) countQuery = countQuery.eq('status', status)
       const { count: totalCount } = await countQuery
 
       // Fetch page
@@ -261,6 +264,7 @@ export async function GET(request: NextRequest) {
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
       if (startDate) query = query.gte('created_at', startDate)
       if (endDate) query = query.lte('created_at', `${endDate}T23:59:59.999Z`)
+      if (status) query = query.eq('status', status)
 
       const { data: matches, error } = await query
       if (error) throw error
@@ -299,11 +303,27 @@ export async function GET(request: NextRequest) {
         }
       })
 
+      // Compute status counts for filter chips (unfiltered by status so chips show totals)
+      const reachoutStatusValues = ['identified', 'outreach_sent', 'candidate_interested', 'negotiating', 'connected', 'candidate_declined', 'passed']
+      const statusCounts: Record<string, number> = {}
+      await Promise.all(
+        reachoutStatusValues.map(async (s) => {
+          let sq = supabase.from('matches').select('*', { count: 'exact', head: true })
+            .not('outreach_message', 'is', null)
+            .eq('status', s)
+          if (startDate) sq = sq.gte('created_at', startDate)
+          if (endDate) sq = sq.lte('created_at', `${endDate}T23:59:59.999Z`)
+          const { count } = await sq
+          statusCounts[s] = count || 0
+        })
+      )
+
       return NextResponse.json({
         items: conversations,
         page,
         totalPages: Math.ceil((totalCount || 0) / PAGE_SIZE),
         totalItems: totalCount || 0,
+        statusCounts,
       })
     }
   } catch (error) {
