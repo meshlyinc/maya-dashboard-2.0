@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2 } from 'lucide-react'
+import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2, CheckCircle } from 'lucide-react'
 import { AnalyticsMetrics, ConversationDetail } from '@/lib/types'
 import MetricCard from '@/components/MetricCard'
 import ActivityChart from '@/components/ActivityChart'
@@ -13,11 +13,13 @@ import UserSearch from '@/components/UserSearch'
 import UserProfileModal from '@/components/UserProfileModal'
 import UnansweredModal from '@/components/UnansweredModal'
 import ConnectionsModal from '@/components/ConnectionsModal'
+import ReadyForMatchingModal from '@/components/ReadyForMatchingModal'
+import PostingCardsModal from '@/components/PostingCardsModal'
 
 export default function Dashboard() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null)
-  const [timeFilter, setTimeFilter] = useState('24h')
+  const [timeFilter, setTimeFilter] = useState('30d')
   const [loading, setLoading] = useState(true)
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState<'posting' | 'reachout' | null>(null)
@@ -25,6 +27,8 @@ export default function Dashboard() {
   const [detailConversationId, setDetailConversationId] = useState<string | null>(null)
   const [showUnanswered, setShowUnanswered] = useState(false)
   const [showConnections, setShowConnections] = useState(false)
+  const [showReadyForMatching, setShowReadyForMatching] = useState(false)
+  const [viewCardsGigId, setViewCardsGigId] = useState<string | null>(null)
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
@@ -166,7 +170,7 @@ export default function Dashboard() {
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <MetricCard
-            title="Total Users"
+            title="User Count"
             value={metrics.totalUsers.toLocaleString()}
             icon={Users}
             trend="+12.5%"
@@ -192,7 +196,7 @@ export default function Dashboard() {
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
           <div
             className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => openConversations('posting')}
@@ -249,6 +253,18 @@ export default function Dashboard() {
             <p className="text-3xl font-semibold text-gray-900">{unansweredCount ?? '...'}</p>
             <p className="text-xs text-gray-500 mt-2">Maya didn&apos;t reply - click to view</p>
           </div>
+
+          <div
+            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-400"
+            onClick={() => setShowReadyForMatching(true)}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-green-600">Convo Judge</h3>
+              <CheckCircle className="w-5 h-5 text-green-500" />
+            </div>
+            <p className="text-3xl font-semibold text-gray-900">AI</p>
+            <p className="text-xs text-gray-500 mt-2">Judge collecting_req convos</p>
+          </div>
         </div>
 
         {/* Activity Chart */}
@@ -265,6 +281,7 @@ export default function Dashboard() {
           onClose={closeConversationList}
           onSelectConversation={openConversation}
           onSelectUser={openUserProfile}
+          onViewCards={(gigId) => setViewCardsGigId(gigId)}
         />
       )}
 
@@ -299,6 +316,25 @@ export default function Dashboard() {
         <ConnectionsModal
           onClose={() => setShowConnections(false)}
           onSelectUser={(userId) => { setSelectedUserId(userId) }}
+        />
+      )}
+
+      {/* Ready for Matching Modal */}
+      {showReadyForMatching && (
+        <ReadyForMatchingModal
+          onClose={() => setShowReadyForMatching(false)}
+          onSelectConversation={(id) => { setSelectedConversation(id) }}
+          onSelectUser={(userId) => { setSelectedUserId(userId) }}
+        />
+      )}
+
+      {/* Posting Cards Modal */}
+      {viewCardsGigId && (
+        <PostingCardsModal
+          gigId={viewCardsGigId}
+          onClose={() => setViewCardsGigId(null)}
+          onSelectUser={openUserProfile}
+          onSelectConversation={(matchId) => setSelectedConversation(matchId)}
         />
       )}
 

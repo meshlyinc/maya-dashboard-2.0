@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { subHours, subDays, subMonths, format } from 'date-fns'
+import { subHours, subMinutes, subDays, subMonths, format } from 'date-fns'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -49,11 +49,8 @@ export async function GET(request: NextRequest) {
       connectionsResult,
       recentUsersResult
     ] = await Promise.all([
-      // Total users (filtered by created_at)
-      supabase
-        .from('users')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', startDate.toISOString()),
+      // Placeholder for users count (computed separately below)
+      Promise.resolve({ count: 0 }),
 
       // Total messages (filtered by created_at)
       supabase
@@ -146,14 +143,16 @@ export async function GET(request: NextRequest) {
         .order('connected_at', { ascending: true }),
     ])
 
-    // Calculate users per minute (based on last hour)
-    const oneHourAgo = subHours(now, 1)
-    const { count: usersLastHour } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', oneHourAgo.toISOString())
+    // Calculate users per minute (last 5 min, only users with non-archived convos)
+    const fiveMinAgo = subMinutes(now, 5)
+    const { data: recentConvUsers } = await supabase
+      .from('conversations')
+      .select('user_id')
+      .neq('status', 'archived')
+      .gte('created_at', fiveMinAgo.toISOString())
+    const usersLast5Min = new Set((recentConvUsers || []).map((c: any) => c.user_id).filter(Boolean)).size
 
-    const usersPerMinute = usersLastHour ? (usersLastHour / 60).toFixed(2) : '0.00'
+    const usersPerMinute = usersLast5Min ? (usersLast5Min / 5).toFixed(2) : '0.00'
 
     // Fetch chart users with chart time filter
     const chartUsersResult = await supabase
@@ -172,8 +171,26 @@ export async function GET(request: NextRequest) {
       chartTimeFilter
     )
 
+    // Count distinct users with at least one non-archived conversation (paginated to avoid 1000-row limit)
+    const activeUserIds = new Set<string>()
+    let userOffset = 0
+    const BATCH = 1000
+    while (true) {
+      const { data: batch } = await supabase
+        .from('conversations')
+        .select('user_id')
+        .neq('status', 'archived')
+        .gte('created_at', startDate.toISOString())
+        .order('id', { ascending: true })
+        .range(userOffset, userOffset + BATCH - 1)
+      if (!batch || batch.length === 0) break
+      batch.forEach((c: any) => { if (c.user_id) activeUserIds.add(c.user_id) })
+      if (batch.length < BATCH) break
+      userOffset += BATCH
+    }
+
     const metrics = {
-      totalUsers: usersResult.count || 0,
+      totalUsers: activeUserIds.size,
       totalMessages: messagesResult.count || 0,
       totalConversations: conversationsResult.count || 0,
       usersPerMinute: parseFloat(usersPerMinute),
@@ -206,24 +223,27 @@ function processActivityData(
   const now = new Date()
   const buckets: { key: string; label: string }[] = []
 
-  // Generate buckets based on time filter
+  // Convert UTC date to IST (UTC+5:30) for display
+  const toIST = (date: Date): Date => new Date(date.getTime() + 5.5 * 60 * 60 * 1000)
+
+  // Generate buckets based on time filter (all keys/labels in IST)
   // 1h → 5-min intervals, 3h → 15-min, 6h → 30-min, 1d → 1-hour, 7d/30d → 1-day, all → 1-month
   const getBucketKey = (date: Date): string => {
-    const d = new Date(date)
+    const d = toIST(new Date(date))
     switch (chartTimeFilter) {
       case '1h': {
         // 5-minute buckets
-        const mins = Math.floor(d.getMinutes() / 5) * 5
+        const mins = Math.floor(d.getUTCMinutes() / 5) * 5
         return `${d.toISOString().slice(0, 13)}:${String(mins).padStart(2, '0')}`
       }
       case '3h': {
         // 15-minute buckets
-        const mins = Math.floor(d.getMinutes() / 15) * 15
+        const mins = Math.floor(d.getUTCMinutes() / 15) * 15
         return `${d.toISOString().slice(0, 13)}:${String(mins).padStart(2, '0')}`
       }
       case '6h': {
         // 30-minute buckets
-        const mins = Math.floor(d.getMinutes() / 30) * 30
+        const mins = Math.floor(d.getUTCMinutes() / 30) * 30
         return `${d.toISOString().slice(0, 13)}:${String(mins).padStart(2, '0')}`
       }
       case '1d': {
@@ -249,14 +269,14 @@ function processActivityData(
       case '1h':
       case '3h':
       case '6h':
-        return key.slice(11) // HH:MM
+        return key.slice(11) // HH:MM (IST)
       case '1d':
-        return key.slice(11) + ':00' // HH:00
+        return key.slice(11) + ':00' // HH:00 (IST)
       case '7d':
       case '30d':
-        return format(new Date(key + 'T00:00:00'), 'MMM dd')
+        return format(new Date(key + 'T00:00:00Z'), 'MMM dd')
       case 'all':
-        return format(new Date(key + '-01T00:00:00'), 'MMM yyyy')
+        return format(new Date(key + '-01T00:00:00Z'), 'MMM yyyy')
       default:
         return key.slice(11) + ':00'
     }

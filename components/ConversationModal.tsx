@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, User, Bot, AlertCircle, UserCheck, MessageSquare, ChevronRight, Clock, Briefcase, CheckCircle, AlertTriangle, Star, MapPin, DollarSign, Zap, Paperclip, Tag, Wrench } from 'lucide-react'
+import { X, User, Bot, AlertCircle, UserCheck, MessageSquare, ChevronRight, Clock, Briefcase, CheckCircle, AlertTriangle, Star, MapPin, DollarSign, Zap, Paperclip, Wrench, ExternalLink, Award, Calendar, MessageCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface ConvMessage {
@@ -100,8 +100,10 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
   const [conversation, setConversation] = useState<ConvData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedReachoutStatus, setSelectedReachoutStatus] = useState('')
 
   useEffect(() => {
+    setSelectedReachoutStatus('')
     fetchConversation()
   }, [conversationId])
 
@@ -241,6 +243,122 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
             )}
           </div>
         )}
+      </div>
+    )
+  }
+
+  const renderMessageMatchCard = (data: any) => {
+    return (
+      <div className="ml-11 mt-2 border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white rounded-xl p-4 shadow-sm">
+        {/* Header: candidate name + score */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <UserCheck className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900">{data.candidateName}</h4>
+              {data.candidateSummary && (
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{data.candidateSummary}</p>
+              )}
+            </div>
+          </div>
+          {data.quotation && (
+            <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex-shrink-0">
+              {data.quotation}
+            </span>
+          )}
+        </div>
+
+        {/* Skills */}
+        {data.skills && data.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {data.skills.map((skill: string, i: number) => (
+              <span key={i} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-medium">
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Info grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+          {data.experienceYears != null && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Award className="w-3.5 h-3.5 text-gray-400" />
+              <span>{data.experienceYears} yrs exp</span>
+            </div>
+          )}
+          {data.availability && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <span className="capitalize">{data.availability.replace(/_/g, ' ')}</span>
+            </div>
+          )}
+          {data.estTime && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              <span>{data.estTime}</span>
+            </div>
+          )}
+          {data.gigTitle && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <Briefcase className="w-3.5 h-3.5 text-gray-400" />
+              <span className="truncate">{data.gigTitle}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Maya's note */}
+        {data.mayasNote && (
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Bot className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-xs font-medium text-blue-700">Maya&apos;s Note</span>
+            </div>
+            <p className="text-xs text-gray-700 leading-relaxed">{data.mayasNote}</p>
+          </div>
+        )}
+
+        {/* Candidate's note */}
+        {data.candidateNote && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <MessageCircle className="w-3.5 h-3.5 text-gray-500" />
+              <span className="text-xs font-medium text-gray-600">Candidate&apos;s Response</span>
+            </div>
+            <p className="text-xs text-gray-700 leading-relaxed">{data.candidateNote}</p>
+          </div>
+        )}
+
+        {/* Action links */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-indigo-100">
+          {data.workLinks && data.workLinks.length > 0 && data.workLinks.map((link: string, i: number) => (
+            <a
+              key={i}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-md text-xs text-indigo-600 font-medium transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              {(() => {
+                try { return new URL(link).hostname.replace('www.', '') } catch { return 'Portfolio' }
+              })()}
+            </a>
+          ))}
+          {data.whatsappUrl && (
+            <a
+              href={data.whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 border border-green-200 hover:bg-green-100 rounded-md text-xs text-green-700 font-medium transition-colors"
+            >
+              <MessageSquare className="w-3 h-3" />
+              Connect on WhatsApp
+            </a>
+          )}
+        </div>
       </div>
     )
   }
@@ -386,17 +504,71 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
             </div>
           ) : conversation.type === 'posting' && conversation.reachouts ? (
             /* Posting view: show reachout summary cards */
+            (() => {
+              // Compute status counts for filter chips
+              const statusCounts: Record<string, number> = {}
+              conversation.reachouts!.forEach(r => {
+                const s = r.status || 'unknown'
+                statusCounts[s] = (statusCounts[s] || 0) + 1
+              })
+              const statusKeys = Object.keys(statusCounts).sort()
+              const filteredReachouts = selectedReachoutStatus
+                ? conversation.reachouts!.filter(r => r.status === selectedReachoutStatus)
+                : conversation.reachouts!
+
+              const REACHOUT_STATUS_COLORS: Record<string, string> = {
+                identified: 'bg-gray-100 text-gray-700 border-gray-300',
+                outreach_sent: 'bg-blue-100 text-blue-800 border-blue-300',
+                candidate_interested: 'bg-green-100 text-green-800 border-green-300',
+                passed: 'bg-red-100 text-red-700 border-red-300',
+                hired: 'bg-purple-100 text-purple-800 border-purple-300',
+              }
+
+              return (
             <div>
               {/* Posting details card */}
               {conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
 
-              {conversation.reachouts.length === 0 ? (
+              {/* Reachout status filter chips */}
+              {statusKeys.length > 1 && (
+                <div className="flex items-center gap-2 flex-wrap mb-4 pb-3 border-b border-gray-100">
+                  <span className="text-xs font-medium text-gray-500 mr-1">Status:</span>
+                  {statusKeys.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSelectedReachoutStatus(prev => prev === s ? '' : s)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                        selectedReachoutStatus === s
+                          ? `${REACHOUT_STATUS_COLORS[s] || 'bg-gray-100 text-gray-700 border-gray-300'} ring-2 ring-offset-1 ring-current`
+                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {s.replace(/_/g, ' ')}
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                        selectedReachoutStatus === s ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {statusCounts[s]}
+                      </span>
+                    </button>
+                  ))}
+                  {selectedReachoutStatus && (
+                    <button
+                      onClick={() => setSelectedReachoutStatus('')}
+                      className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {filteredReachouts.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  No reachouts for this posting yet
+                  {selectedReachoutStatus ? 'No reachouts with this status' : 'No reachouts for this posting yet'}
                 </div>
               ) : (
               <div className="space-y-3">
-                {conversation.reachouts.map((reachout) => {
+                {filteredReachouts.map((reachout) => {
                   const statusColor = getReachoutStatusColor(reachout.status)
                   return (
                     <div
@@ -469,6 +641,8 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
               </div>
               )}
             </div>
+              )
+            })()
           ) : conversation.messages.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-500 mb-2">No messages found</div>
@@ -517,11 +691,6 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                         <span className="text-xs text-gray-500">
                           {safeFormatDate(message.createdAt, 'MMM d, h:mm a')}
                         </span>
-                        {meta?.original_type && meta.original_type !== 'new' && (
-                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-medium">
-                            {meta.original_type.replace(/_/g, ' ')}
-                          </span>
-                        )}
                       </div>
                       <div className={`text-sm whitespace-pre-wrap break-words ${
                         isSystem ? 'text-gray-500 italic' : 'text-gray-700'
@@ -560,35 +729,39 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                       {/* Tool Calls */}
                       {hasToolCalls && (
                         <div className="mt-2 space-y-1">
-                          {message.toolCalls!.map((tc: any, i: number) => (
-                            <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-md text-xs text-amber-700">
-                              <Wrench className="w-3 h-3" />
-                              {tc.name || tc.function?.name || 'tool call'}
-                              {tc.function?.arguments && (
-                                <span className="text-amber-500 ml-1 truncate max-w-[200px]">
-                                  {typeof tc.function.arguments === 'string' ? tc.function.arguments.slice(0, 80) : JSON.stringify(tc.function.arguments).slice(0, 80)}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                          {message.toolCalls!.map((tc: any, i: number) => {
+                            const toolName = tc.name || tc.function?.name || 'tool call'
+                            const args = tc.function?.arguments
+                              ? (typeof tc.function.arguments === 'string' ? (() => { try { return JSON.parse(tc.function.arguments) } catch { return null } })() : tc.function.arguments)
+                              : (tc.arguments ? (typeof tc.arguments === 'string' ? (() => { try { return JSON.parse(tc.arguments) } catch { return null } })() : tc.arguments) : null)
+
+                            return (
+                              <div key={i} className="border border-amber-200 bg-amber-50/50 rounded-lg p-3">
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <Wrench className="w-3.5 h-3.5 text-amber-600" />
+                                  <span className="text-xs font-semibold text-amber-800">{toolName}</span>
+                                </div>
+                                {args && typeof args === 'object' && (
+                                  <div className="space-y-1.5">
+                                    {Object.entries(args).map(([k, v]) => (
+                                      <div key={k} className="text-xs">
+                                        <span className="font-medium text-gray-600">{k.replace(/_/g, ' ')}: </span>
+                                        <span className="text-gray-700">
+                                          {typeof v === 'string' ? v : Array.isArray(v) ? v.join(', ') : JSON.stringify(v)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
 
-                      {/* Metadata row */}
-                      {meta && Object.keys(meta).length > 0 && (
-                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                          {meta.source && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-500">
-                              <Tag className="w-2.5 h-2.5" />
-                              {meta.source.replace(/_/g, ' ')}
-                            </span>
-                          )}
-                          {Object.entries(meta).filter(([k]) => k !== 'source' && k !== 'original_type').map(([key, value]) => (
-                            <span key={key} className="px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-500">
-                              {key}: {typeof value === 'string' ? value : JSON.stringify(value)}
-                            </span>
-                          ))}
-                        </div>
+                      {/* Match Card from metadata */}
+                      {meta?.component?.type === 'match_card' && meta.component.data && (
+                        renderMessageMatchCard(meta.component.data)
                       )}
                     </div>
                   </div>

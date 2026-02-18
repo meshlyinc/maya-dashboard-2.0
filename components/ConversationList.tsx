@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { X, MessageSquare, User, Phone, Search, Eye, UserCheck, ExternalLink } from 'lucide-react'
+import { X, MessageSquare, User, Phone, Search, Eye, UserCheck, ExternalLink, CreditCard } from 'lucide-react'
 import { format } from 'date-fns'
 import { Pagination, DateRangeFilter } from './ListControls'
 
@@ -18,6 +18,7 @@ interface ConversationItem {
   type: string
   conversationId?: string | null
   conversationMessageCount?: number
+  cardsSentCount?: number
   userId?: string | null
   metadata?: {
     candidatesMatched: number
@@ -34,9 +35,10 @@ interface ConversationListProps {
   onClose: () => void
   onSelectConversation: (id: string) => void
   onSelectUser?: (userId: string) => void
+  onViewCards?: (gigId: string) => void
 }
 
-export default function ConversationList({ type, onClose, onSelectConversation, onSelectUser }: ConversationListProps) {
+export default function ConversationList({ type, onClose, onSelectConversation, onSelectUser, onViewCards }: ConversationListProps) {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -46,6 +48,10 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const [endDate, setEndDate] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [selectedStage, setSelectedStage] = useState('')
+  const [stageCounts, setStageCounts] = useState<Record<string, number>>({})
+  const [selectedFilter, setSelectedFilter] = useState('')
+  const [filterCounts, setFilterCounts] = useState<Record<string, number>>({})
 
   // Debounce search input
   useEffect(() => {
@@ -63,17 +69,21 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
       if (startDate) params.set('startDate', startDate)
       if (endDate) params.set('endDate', endDate)
       if (debouncedSearch) params.set('search', debouncedSearch)
+      if (selectedStage) params.set('stage', selectedStage)
+      if (selectedFilter) params.set('filter', selectedFilter)
       const res = await fetch(`/api/conversations?${params}`)
       const data = await res.json()
       setConversations(data.items || [])
       setTotalPages(data.totalPages || 0)
       setTotalItems(data.totalItems || 0)
+      if (data.stageCounts) setStageCounts(data.stageCounts)
+      if (data.filterCounts) setFilterCounts(data.filterCounts)
     } catch (error) {
       console.error('Failed to fetch conversations:', error)
     } finally {
       setLoading(false)
     }
-  }, [type, page, startDate, endDate, debouncedSearch])
+  }, [type, page, startDate, endDate, debouncedSearch, selectedStage, selectedFilter])
 
   useEffect(() => {
     fetchConversations()
@@ -83,6 +93,19 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const handleStartDate = (d: string) => { setStartDate(d); setPage(1) }
   const handleEndDate = (d: string) => { setEndDate(d); setPage(1) }
   const handleClearDates = () => { setStartDate(''); setEndDate(''); setPage(1) }
+  const handleStageChange = (stage: string) => { setSelectedStage(prev => prev === stage ? '' : stage); setPage(1) }
+  const handleFilterChange = (f: string) => { setSelectedFilter(prev => prev === f ? '' : f); setPage(1) }
+
+  const POSTING_STAGES = [
+    { value: 'collecting_requirements', label: 'Collecting Requirements', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+    { value: 'matching', label: 'Matching', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+    { value: 'active', label: 'Active', color: 'bg-green-100 text-green-800 border-green-300' },
+  ]
+
+  const POSTING_FILTERS = [
+    { value: 'card_sent', label: 'Card Sent', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+    { value: 'connected', label: 'Connected', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+  ]
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -118,6 +141,76 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+          </div>
+        )}
+
+        {/* Stage Filter Chips (postings only) */}
+        {type === 'posting' && (
+          <div className="px-6 pt-3 pb-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 mr-1">Stage:</span>
+            {POSTING_STAGES.map(s => (
+              <button
+                key={s.value}
+                onClick={() => handleStageChange(s.value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  selectedStage === s.value
+                    ? `${s.color} ring-2 ring-offset-1 ring-current`
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {s.label}
+                {stageCounts[s.value] != null && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    selectedStage === s.value ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {stageCounts[s.value]}
+                  </span>
+                )}
+              </button>
+            ))}
+            {selectedStage && (
+              <button
+                onClick={() => { setSelectedStage(''); setPage(1) }}
+                className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Reachout Filter Chips (postings only) */}
+        {type === 'posting' && (
+          <div className="px-6 pt-2 pb-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 mr-1">Reachout:</span>
+            {POSTING_FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => handleFilterChange(f.value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  selectedFilter === f.value
+                    ? `${f.color} ring-2 ring-offset-1 ring-current`
+                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {f.label}
+                {filterCounts[f.value] != null && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    selectedFilter === f.value ? 'bg-white/50' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {filterCounts[f.value]}
+                  </span>
+                )}
+              </button>
+            ))}
+            {selectedFilter && (
+              <button
+                onClick={() => { setSelectedFilter(''); setPage(1) }}
+                className="px-2 py-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
           </div>
         )}
 
@@ -221,12 +314,20 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
                   {/* CTAs for posting cards */}
                   {type === 'posting' && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      {conv.conversationMessageCount != null && conv.conversationMessageCount > 0 && (
-                        <div className="flex items-center gap-1.5 mb-2 text-xs text-gray-500">
-                          <MessageSquare className="w-3 h-3" />
-                          <span>{conv.conversationMessageCount} messages in conversation</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-4 mb-2 text-xs text-gray-500">
+                        {conv.conversationMessageCount != null && conv.conversationMessageCount > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <MessageSquare className="w-3 h-3" />
+                            <span>{conv.conversationMessageCount} messages in conversation</span>
+                          </div>
+                        )}
+                        {(conv.cardsSentCount || 0) > 0 && (
+                          <div className="flex items-center gap-1.5 text-orange-600 font-medium">
+                            <CreditCard className="w-3 h-3" />
+                            <span>{conv.cardsSentCount} cards sent</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => conv.conversationId && onSelectConversation(conv.conversationId)}
@@ -243,6 +344,15 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
                           <UserCheck className="w-4 h-4" />
                           View Reachouts
                         </button>
+                        {(conv.cardsSentCount || 0) > 0 && onViewCards && (
+                          <button
+                            onClick={() => onViewCards(conv.id)}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-orange-500 text-white hover:bg-orange-600 shadow-sm"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            View Cards ({conv.cardsSentCount})
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
