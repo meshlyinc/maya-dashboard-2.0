@@ -15,6 +15,7 @@ import UnansweredModal from '@/components/UnansweredModal'
 import ConnectionsModal from '@/components/ConnectionsModal'
 import ReadyForMatchingModal from '@/components/ReadyForMatchingModal'
 import PostingCardsModal from '@/components/PostingCardsModal'
+import PortfoliosModal from '@/components/PortfoliosModal'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [showConnections, setShowConnections] = useState(false)
   const [showReadyForMatching, setShowReadyForMatching] = useState(false)
   const [viewCardsGigId, setViewCardsGigId] = useState<string | null>(null)
+  const [showPortfolios, setShowPortfolios] = useState(false)
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
@@ -233,13 +235,16 @@ export default function Dashboard() {
             <p className="text-xs text-gray-500 mt-2">Click to view connections</p>
           </div>
 
-          <div className="bg-white rounded-lg p-6">
+          <div
+            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => setShowPortfolios(true)}
+          >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-gray-600">Freelancer Portfolios</h3>
               <FolderKanban className="w-5 h-5 text-purple-500" />
             </div>
             <p className="text-3xl font-semibold text-gray-900">{metrics.totalFreelancerPortfolios}</p>
-            <p className="text-xs text-gray-500 mt-2">Total candidate profiles</p>
+            <p className="text-xs text-gray-500 mt-2">Click to view portfolios</p>
           </div>
 
           <div
@@ -335,6 +340,14 @@ export default function Dashboard() {
           onClose={() => setViewCardsGigId(null)}
           onSelectUser={openUserProfile}
           onSelectConversation={(matchId) => setSelectedConversation(matchId)}
+        />
+      )}
+
+      {/* Portfolios Modal */}
+      {showPortfolios && (
+        <PortfoliosModal
+          onClose={() => setShowPortfolios(false)}
+          onSelectUser={openUserProfile}
         />
       )}
 

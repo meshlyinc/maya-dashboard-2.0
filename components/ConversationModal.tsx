@@ -82,6 +82,7 @@ interface ConvData {
     candidatesMatched?: number
     candidatesReached?: number
     totalReachouts?: number
+    connectedCount?: number
     matchScore?: number
     matchReasons?: string[]
     potentialConcerns?: string[]
@@ -456,6 +457,14 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                       <>
                         <span>•</span>
                         <span>{conversation.metadata.candidatesMatched} matched</span>
+                      </>
+                    )}
+                    {(conversation.metadata.connectedCount || 0) > 0 && (
+                      <>
+                        <span>•</span>
+                        <span className="text-green-600 font-medium">
+                          {conversation.metadata.connectedCount} connected
+                        </span>
                       </>
                     )}
                     {conversation.metadata.matchScore != null && (

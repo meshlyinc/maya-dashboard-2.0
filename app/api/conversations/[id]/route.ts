@@ -116,6 +116,7 @@ export async function GET(
           candidatesMatched: gigPosting.candidates_matched || 0,
           candidatesReached: gigPosting.candidates_reached || 0,
           totalReachouts: matches?.length || 0,
+          connectedCount: matches?.filter((m: any) => m.connected_at != null).length || 0,
         },
         postingDetails: {
           description: gigPosting.description || null,

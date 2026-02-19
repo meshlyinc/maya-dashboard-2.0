@@ -126,6 +126,19 @@ export async function GET(request: NextRequest) {
         })
       }
 
+      // Count connected matches per gig (connected_at is set when hirer-candidate connect)
+      const connectedCountByGigId: Record<string, number> = {}
+      if (gigIds.length > 0) {
+        const { data: connectedMatches } = await supabase
+          .from('matches')
+          .select('gig_id')
+          .in('gig_id', gigIds)
+          .not('connected_at', 'is', null)
+        connectedMatches?.forEach((m: any) => {
+          if (m.gig_id) connectedCountByGigId[m.gig_id] = (connectedCountByGigId[m.gig_id] || 0) + 1
+        })
+      }
+
       // Count match_card messages per posting conversation
       const convIdToGigId: Record<string, string> = {}
       Object.entries(gigConvMap).forEach(([gigId, conv]) => {
@@ -160,6 +173,7 @@ export async function GET(request: NextRequest) {
         conversationId: gigConvMap[gig.id]?.id || null,
         conversationMessageCount: gigConvMap[gig.id]?.messageCount || 0,
         cardsSentCount: cardCountByGigId[gig.id] || 0,
+        connectedCount: connectedCountByGigId[gig.id] || 0,
         metadata: {
           candidatesMatched: gig.candidates_matched || 0,
           candidatesReached: reachoutCounts[gig.id] || 0,

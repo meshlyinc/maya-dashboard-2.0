@@ -61,15 +61,19 @@ export async function GET(
       .filter(Boolean)
 
     const matchUserMap: Record<string, string> = {} // matchId -> candidate user_id
+    const matchStatusMap: Record<string, string> = {} // matchId -> status
     if (matchIds.length > 0) {
       const { data: matches } = await supabase
         .from('matches')
-        .select('id, candidate_profiles(user_id)')
+        .select('id, status, candidate_profiles(user_id)')
         .in('id', matchIds)
 
       matches?.forEach((m: any) => {
         if (m.candidate_profiles?.user_id) {
           matchUserMap[m.id] = m.candidate_profiles.user_id
+        }
+        if (m.status) {
+          matchStatusMap[m.id] = m.status
         }
       })
     }
@@ -83,11 +87,20 @@ export async function GET(
         createdAt: msg.created_at,
         matchId: matchId || null,
         candidateUserId: matchId ? (matchUserMap[matchId] || null) : null,
+        matchStatus: matchId ? (matchStatusMap[matchId] || null) : null,
         cardData,
       }
     })
 
-    return NextResponse.json({ cards, gigTitle: gig.title })
+    // Compute status counts
+    const statusCounts: Record<string, number> = {}
+    cards.forEach((c: any) => {
+      if (c.matchStatus) {
+        statusCounts[c.matchStatus] = (statusCounts[c.matchStatus] || 0) + 1
+      }
+    })
+
+    return NextResponse.json({ cards, gigTitle: gig.title, statusCounts })
   } catch (error) {
     console.error('Posting cards error:', error)
     return NextResponse.json(

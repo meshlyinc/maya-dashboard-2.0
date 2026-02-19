@@ -19,6 +19,7 @@ interface ConversationItem {
   conversationId?: string | null
   conversationMessageCount?: number
   cardsSentCount?: number
+  connectedCount?: number
   userId?: string | null
   metadata?: {
     candidatesMatched: number
@@ -375,6 +376,12 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
                           <div className="flex items-center gap-1.5 text-orange-600 font-medium">
                             <CreditCard className="w-3 h-3" />
                             <span>{conv.cardsSentCount} cards sent</span>
+                          </div>
+                        )}
+                        {(conv.connectedCount || 0) > 0 && (
+                          <div className="flex items-center gap-1.5 text-green-600 font-medium">
+                            <UserCheck className="w-3 h-3" />
+                            <span>{conv.connectedCount} connected</span>
                           </div>
                         )}
                       </div>

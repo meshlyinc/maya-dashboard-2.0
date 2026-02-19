@@ -79,10 +79,11 @@ export async function GET(request: NextRequest) {
         .not('outreach_message', 'is', null)
         .gte('created_at', startDate.toISOString()),
 
-      // Freelancer portfolios (candidate_profiles)
+      // Freelancer portfolios (candidate_profiles, exclude migrated)
       supabase
         .from('candidate_profiles')
         .select('id', { count: 'exact', head: true })
+        .neq('source', 'whatsapp_migration')
         .gte('created_at', startDate.toISOString()),
 
       // Connections (matches where connected_at is not null)

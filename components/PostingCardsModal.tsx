@@ -4,11 +4,32 @@ import { useEffect, useState } from 'react'
 import { X, UserCheck, ExternalLink, Bot, MessageSquare, Clock, Award, Calendar, Briefcase, CreditCard } from 'lucide-react'
 import { format } from 'date-fns'
 
+const STATUS_COLORS: Record<string, string> = {
+  connected: 'bg-green-100 text-green-700 border-green-300',
+  candidate_interested: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+  negotiating: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+  outreach_sent: 'bg-blue-100 text-blue-700 border-blue-300',
+  identified: 'bg-gray-100 text-gray-600 border-gray-300',
+  candidate_declined: 'bg-red-100 text-red-700 border-red-300',
+  passed: 'bg-gray-100 text-gray-500 border-gray-300',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  connected: 'Connected',
+  candidate_interested: 'Interested',
+  negotiating: 'Negotiating',
+  outreach_sent: 'Outreach Sent',
+  identified: 'Identified',
+  candidate_declined: 'Declined',
+  passed: 'Passed',
+}
+
 interface CardItem {
   messageId: string
   createdAt: string
   matchId: string | null
   candidateUserId: string | null
+  matchStatus: string | null
   cardData: {
     candidateName?: string
     candidateSummary?: string
@@ -37,6 +58,7 @@ export default function PostingCardsModal({ gigId, onClose, onSelectUser, onSele
   const [cards, setCards] = useState<CardItem[]>([])
   const [gigTitle, setGigTitle] = useState('')
   const [loading, setLoading] = useState(true)
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     fetchCards()
@@ -49,6 +71,7 @@ export default function PostingCardsModal({ gigId, onClose, onSelectUser, onSele
       const data = await res.json()
       setCards(data.cards || [])
       setGigTitle(data.gigTitle || '')
+      setStatusCounts(data.statusCounts || {})
     } catch (err) {
       console.error('Failed to fetch cards:', err)
     } finally {
@@ -70,7 +93,19 @@ export default function PostingCardsModal({ gigId, onClose, onSelectUser, onSele
               <p className="text-sm text-gray-500 mt-1">{gigTitle}</p>
             )}
             {cards.length > 0 && (
-              <span className="text-xs text-gray-400">{cards.length} cards</span>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-xs text-gray-400">{cards.length} cards sent</span>
+                {Object.entries(statusCounts)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([status, count]) => (
+                    <span
+                      key={status}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[status] || 'bg-gray-100 text-gray-600 border-gray-300'}`}
+                    >
+                      {count} {STATUS_LABELS[status] || status.replace(/_/g, ' ')}
+                    </span>
+                  ))}
+              </div>
             )}
           </div>
           <button
@@ -107,6 +142,11 @@ export default function PostingCardsModal({ gigId, onClose, onSelectUser, onSele
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {card.matchStatus && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[card.matchStatus] || 'bg-gray-100 text-gray-600 border-gray-300'}`}>
+                            {STATUS_LABELS[card.matchStatus] || card.matchStatus.replace(/_/g, ' ')}
+                          </span>
+                        )}
                         {d.quotation && (
                           <span className="px-2.5 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">
                             {d.quotation}
