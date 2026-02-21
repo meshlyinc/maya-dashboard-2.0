@@ -280,16 +280,49 @@ export async function GET(
         userName = convUser?.full_name || convUser?.email || 'User'
       }
 
-      const formattedMessages = messages?.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        createdAt: msg.created_at,
-        senderName: msg.role === 'assistant' ? 'Maya (AI)' : msg.role === 'system' ? 'System' : userName,
-        metadata: msg.metadata,
-        attachments: msg.attachments,
-        toolCalls: msg.tool_calls
-      })) || []
+      // For group/introduction conversations: look up ALL participant names using sender_id
+      // Group conversations have: conversation_type = 'introduction', participants array, messages with sender_id
+      const isGroupConv = conversation.conversation_type === 'introduction' ||
+        (conversation.participants && Array.isArray(conversation.participants) && conversation.participants.length > 1)
+
+      const senderNameMap: Record<string, string> = {}
+      if (isGroupConv) {
+        // Collect all unique sender_ids from messages
+        const senderIds = [...new Set((messages || []).map((m: any) => m.sender_id).filter(Boolean))]
+        // Also include participants from the conversation
+        const participantIds = conversation.participants || []
+        const allIds = [...new Set([...senderIds, ...participantIds])]
+
+        if (allIds.length > 0) {
+          const { data: senderUsers } = await supabase
+            .from('users')
+            .select('id, full_name, phone')
+            .in('id', allIds)
+          senderUsers?.forEach((u: any) => {
+            senderNameMap[u.id] = u.full_name || u.phone || 'User'
+          })
+        }
+      }
+
+      const formattedMessages = messages?.map(msg => {
+        let senderName = userName
+        if (msg.role === 'assistant') senderName = 'Maya (AI)'
+        else if (msg.role === 'system') senderName = 'System'
+        // For group conversations: use sender_id to look up the correct name
+        else if (isGroupConv && msg.sender_id && senderNameMap[msg.sender_id]) {
+          senderName = senderNameMap[msg.sender_id]
+        }
+        return {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          createdAt: msg.created_at,
+          senderName,
+          metadata: msg.metadata,
+          attachments: msg.attachments,
+          toolCalls: msg.tool_calls
+        }
+      }) || []
 
       // If conversation is linked to a gig posting, fetch posting details
       let postingDetails = null

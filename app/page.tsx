@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2, CheckCircle } from 'lucide-react'
+import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2, CheckCircle, UsersRound } from 'lucide-react'
 import { AnalyticsMetrics, ConversationDetail } from '@/lib/types'
 import MetricCard from '@/components/MetricCard'
 import ActivityChart from '@/components/ActivityChart'
@@ -16,6 +16,7 @@ import ConnectionsModal from '@/components/ConnectionsModal'
 import ReadyForMatchingModal from '@/components/ReadyForMatchingModal'
 import PostingCardsModal from '@/components/PostingCardsModal'
 import PortfoliosModal from '@/components/PortfoliosModal'
+import GroupConversationsModal from '@/components/GroupConversationsModal'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -31,6 +32,7 @@ export default function Dashboard() {
   const [showReadyForMatching, setShowReadyForMatching] = useState(false)
   const [viewCardsGigId, setViewCardsGigId] = useState<string | null>(null)
   const [showPortfolios, setShowPortfolios] = useState(false)
+  const [showGroupConversations, setShowGroupConversations] = useState(false)
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
@@ -198,7 +200,7 @@ export default function Dashboard() {
         </div>
 
         {/* Additional Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-6 mb-8">
           <div
             className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => openConversations('posting')}
@@ -233,6 +235,18 @@ export default function Dashboard() {
             </div>
             <p className="text-3xl font-semibold text-gray-900">{metrics.totalConnections}</p>
             <p className="text-xs text-gray-500 mt-2">Click to view connections</p>
+          </div>
+
+          <div
+            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-indigo-400"
+            onClick={() => setShowGroupConversations(true)}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-indigo-600">Group Convos</h3>
+              <UsersRound className="w-5 h-5 text-indigo-500" />
+            </div>
+            <p className="text-3xl font-semibold text-gray-900">{metrics.totalGroupConversations}</p>
+            <p className="text-xs text-gray-500 mt-2">View group chats</p>
           </div>
 
           <div
@@ -340,6 +354,15 @@ export default function Dashboard() {
           onClose={() => setViewCardsGigId(null)}
           onSelectUser={openUserProfile}
           onSelectConversation={(matchId) => setSelectedConversation(matchId)}
+        />
+      )}
+
+      {/* Group Conversations Modal */}
+      {showGroupConversations && (
+        <GroupConversationsModal
+          onClose={() => setShowGroupConversations(false)}
+          onSelectConversation={(id) => { setSelectedConversation(id) }}
+          onSelectUser={(userId) => { setSelectedUserId(userId) }}
         />
       )}
 

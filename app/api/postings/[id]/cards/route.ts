@@ -62,10 +62,11 @@ export async function GET(
 
     const matchUserMap: Record<string, string> = {} // matchId -> candidate user_id
     const matchStatusMap: Record<string, string> = {} // matchId -> status
+    const matchConnectedMap: Record<string, string> = {} // matchId -> connected_at
     if (matchIds.length > 0) {
       const { data: matches } = await supabase
         .from('matches')
-        .select('id, status, candidate_profiles(user_id)')
+        .select('id, status, connected_at, candidate_profiles(user_id)')
         .in('id', matchIds)
 
       matches?.forEach((m: any) => {
@@ -74,6 +75,9 @@ export async function GET(
         }
         if (m.status) {
           matchStatusMap[m.id] = m.status
+        }
+        if (m.connected_at) {
+          matchConnectedMap[m.id] = m.connected_at
         }
       })
     }
@@ -88,6 +92,7 @@ export async function GET(
         matchId: matchId || null,
         candidateUserId: matchId ? (matchUserMap[matchId] || null) : null,
         matchStatus: matchId ? (matchStatusMap[matchId] || null) : null,
+        connectedAt: matchId ? (matchConnectedMap[matchId] || null) : null,
         cardData,
       }
     })

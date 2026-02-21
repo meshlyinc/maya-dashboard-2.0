@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, UserCheck, ExternalLink, Bot, MessageSquare, Clock, Award, Calendar, Briefcase, CreditCard } from 'lucide-react'
+import { X, UserCheck, ExternalLink, Bot, MessageSquare, Clock, Award, Calendar, Briefcase, CreditCard, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -30,6 +30,7 @@ interface CardItem {
   matchId: string | null
   candidateUserId: string | null
   matchStatus: string | null
+  connectedAt: string | null
   cardData: {
     candidateName?: string
     candidateSummary?: string
@@ -142,6 +143,12 @@ export default function PostingCardsModal({ gigId, onClose, onSelectUser, onSele
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {card.connectedAt && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-green-50 text-green-700 border-green-300">
+                            <Link2 className="w-3 h-3" />
+                            Connected on WA · {format(new Date(card.connectedAt), 'MMM d')}
+                          </span>
+                        )}
                         {card.matchStatus && (
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[card.matchStatus] || 'bg-gray-100 text-gray-600 border-gray-300'}`}>
                             {STATUS_LABELS[card.matchStatus] || card.matchStatus.replace(/_/g, ' ')}

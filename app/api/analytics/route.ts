@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       reachoutsResult,
       portfoliosResult,
       connectionsResult,
+      groupConvsResult,
       recentUsersResult
     ] = await Promise.all([
       // Placeholder for users count (computed separately below)
@@ -92,6 +93,12 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .not('connected_at', 'is', null)
         .gte('connected_at', startDate.toISOString()),
+
+      // Group conversations (introduction type)
+      supabase
+        .from('conversations')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_type', 'introduction'),
 
       // Recent users for activity chart (uses main timeFilter initially, will be re-fetched for chart)
       supabase
@@ -200,6 +207,7 @@ export async function GET(request: NextRequest) {
       totalPostings: postingsResult.count || 0,
       totalReachouts: reachoutsResult.count || 0,
       totalConnections: connectionsResult.count || 0,
+      totalGroupConversations: groupConvsResult.count || 0,
       totalFreelancerPortfolios: portfoliosResult.count || 0,
       recentActivity: activityData,
       timeFilter
