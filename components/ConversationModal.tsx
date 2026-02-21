@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { X, User, Bot, AlertCircle, UserCheck, MessageSquare, ChevronRight, Clock, Briefcase, CheckCircle, AlertTriangle, Star, MapPin, DollarSign, Zap, Paperclip, Wrench, ExternalLink, Award, Calendar, MessageCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -97,30 +97,63 @@ interface ConversationModalProps {
   onSelectMatch?: (matchId: string) => void
 }
 
+// Module-level caches — persist across component mounts so re-opening a conversation is instant
+const dataCache: Record<string, ConvData> = {}
+const scrollCache: Record<string, number> = {}
+
 export default function ConversationModal({ conversationId, onClose, onSelectMatch }: ConversationModalProps) {
-  const [conversation, setConversation] = useState<ConvData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [conversation, setConversation] = useState<ConvData | null>(dataCache[conversationId] || null)
+  const [loading, setLoading] = useState(!dataCache[conversationId])
   const [error, setError] = useState<string | null>(null)
   const [selectedReachoutStatus, setSelectedReachoutStatus] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setSelectedReachoutStatus('')
-    fetchConversation()
+    // If cached, show it immediately but still refresh in background
+    if (dataCache[conversationId]) {
+      setConversation(dataCache[conversationId])
+      setLoading(false)
+      fetchConversation(true) // silent background refresh
+    } else {
+      setConversation(null)
+      setLoading(true)
+      fetchConversation(false)
+    }
   }, [conversationId])
 
-  const fetchConversation = async () => {
-    setLoading(true)
+  // Restore scroll position after render
+  useEffect(() => {
+    if (!loading && scrollRef.current && scrollCache[conversationId] != null) {
+      scrollRef.current.scrollTop = scrollCache[conversationId]
+    }
+  }, [loading, conversationId])
+
+  // Save scroll position on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollRef.current) {
+        scrollCache[conversationId] = scrollRef.current.scrollTop
+      }
+    }
+  }, [conversationId])
+
+  const fetchConversation = async (silent = false) => {
+    if (!silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
       const res = await fetch(`/api/conversations/${conversationId}`)
       const data = await res.json()
       if (!res.ok || data.error) {
-        setError(data.error || `Failed to load (${res.status})`)
+        if (!silent) setError(data.error || `Failed to load (${res.status})`)
         return
       }
+      dataCache[conversationId] = data
       setConversation(data)
     } catch (err) {
-      setError('Network error - failed to fetch conversation')
+      if (!silent) setError('Network error - failed to fetch conversation')
     } finally {
       setLoading(false)
     }
@@ -491,7 +524,7 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="text-center py-12 text-gray-500">
               <div className="animate-pulse">Loading messages...</div>
@@ -501,7 +534,7 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
               <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
               <div className="text-red-500 mb-3">{error}</div>
               <button
-                onClick={fetchConversation}
+                onClick={() => fetchConversation(false)}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Retry
@@ -668,9 +701,9 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
           ) : (
             /* Regular chat view for reachout/query types */
             <div className="space-y-4">
-              {/* Metadata cards above messages */}
-              {conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
-              {conversation.metadata && renderMatchInfoCard(conversation.metadata)}
+              {/* Metadata cards above messages (hide in group/introduction conversations) */}
+              {conversation.conversationType !== 'introduction' && conversation.postingDetails && renderPostingDetailsCard(conversation.postingDetails)}
+              {conversation.conversationType !== 'introduction' && conversation.metadata && renderMatchInfoCard(conversation.metadata)}
 
               {conversation.messages.map(message => {
                 const isAssistant = message.role === 'assistant'
@@ -772,8 +805,8 @@ export default function ConversationModal({ conversationId, onClose, onSelectMat
                         </div>
                       )}
 
-                      {/* Match Card from metadata */}
-                      {meta?.component?.type === 'match_card' && meta.component.data && (
+                      {/* Match Card from metadata (hide in group/introduction conversations) */}
+                      {conversation.conversationType !== 'introduction' && meta?.component?.type === 'match_card' && meta.component.data && (
                         renderMessageMatchCard(meta.component.data)
                       )}
                     </div>
