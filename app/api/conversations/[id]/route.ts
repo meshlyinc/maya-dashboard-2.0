@@ -165,11 +165,13 @@ export async function GET(
         }
       }
 
-      // Find the linked conversation (via match_id) to get the FULL chat thread
+      // Find the linked outreach conversation (via match_id) to get the FULL chat thread
+      // Exclude 'introduction' (group) conversations — we only want the outreach convo here
       const { data: linkedConvs } = await supabase
         .from('conversations')
         .select('id, user_id, conversation_type, status, stage, title')
         .eq('match_id', match.id)
+        .neq('conversation_type', 'introduction')
         .order('created_at', { ascending: false })
         .limit(1)
 
