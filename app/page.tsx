@@ -116,12 +116,16 @@ export default function Dashboard() {
     fetchAllData(true)
   }
 
-  const openConversations = (type: 'posting' | 'reachout') => {
+  const [initialStage, setInitialStage] = useState<string | undefined>(undefined)
+
+  const openConversations = (type: 'posting' | 'reachout', stage?: string) => {
+    setInitialStage(stage)
     setSelectedType(type)
   }
 
   const closeConversationList = () => {
     setSelectedType(null)
+    setInitialStage(undefined)
   }
 
   const openConversation = (id: string) => {
@@ -225,7 +229,7 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <MetricCard
             title="User Count"
             value={metrics.totalUsers.toLocaleString()}
@@ -245,6 +249,12 @@ export default function Dashboard() {
             trend="+15.3%"
           />
           <MetricCard
+            title="Postings / Queries"
+            value={metrics.totalPostings.toLocaleString()}
+            icon={Briefcase}
+            onClick={() => openConversations('posting')}
+          />
+          <MetricCard
             title="Users/Minute"
             value={metrics.usersPerMinute.toFixed(2)}
             icon={TrendingUp}
@@ -255,15 +265,15 @@ export default function Dashboard() {
         {/* Additional Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-6 mb-8">
           <div
-            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => openConversations('posting')}
+            className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-400"
+            onClick={() => openConversations('posting', 'matching')}
           >
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">Postings / Queries</h3>
+              <h3 className="text-sm font-medium text-blue-600">Matched Queries</h3>
               <Briefcase className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-3xl font-semibold text-gray-900">{metrics.totalPostings}</p>
-            <p className="text-xs text-gray-500 mt-2">Click to view conversations</p>
+            <p className="text-3xl font-semibold text-gray-900">{metrics.totalMatchedQueries}</p>
+            <p className="text-xs text-gray-500 mt-2">Queries in matching stage</p>
           </div>
 
           <div
@@ -354,6 +364,7 @@ export default function Dashboard() {
           onSelectConversation={openConversation}
           onSelectUser={openUserProfile}
           onViewCards={(gigId) => setViewCardsGigId(gigId)}
+          initialStage={initialStage}
         />
       )}
 

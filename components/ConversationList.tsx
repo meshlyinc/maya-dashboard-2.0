@@ -37,9 +37,10 @@ interface ConversationListProps {
   onSelectConversation: (id: string) => void
   onSelectUser?: (userId: string) => void
   onViewCards?: (gigId: string) => void
+  initialStage?: string
 }
 
-export default function ConversationList({ type, onClose, onSelectConversation, onSelectUser, onViewCards }: ConversationListProps) {
+export default function ConversationList({ type, onClose, onSelectConversation, onSelectUser, onViewCards, initialStage }: ConversationListProps) {
   const [conversations, setConversations] = useState<ConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -49,7 +50,7 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const [endDate, setEndDate] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [selectedStage, setSelectedStage] = useState('')
+  const [selectedStage, setSelectedStage] = useState(initialStage || '')
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({})
   const [selectedFilter, setSelectedFilter] = useState('')
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({})

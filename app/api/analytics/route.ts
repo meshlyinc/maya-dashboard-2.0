@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       messagesResult,
       conversationsResult,
       postingsResult,
+      matchedQueriesResult,
       reachoutsResult,
       portfoliosResult,
       connectionsResult,
@@ -71,6 +72,13 @@ export async function GET(request: NextRequest) {
       supabase
         .from('gig_postings')
         .select('id', { count: 'exact', head: true })
+        .gte('created_at', startDate.toISOString()),
+
+      // Matched queries (gig_postings with status 'matching')
+      supabase
+        .from('gig_postings')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'matching')
         .gte('created_at', startDate.toISOString()),
 
       // Reachouts (matches that have an outreach message)
@@ -211,6 +219,7 @@ export async function GET(request: NextRequest) {
       totalConversations: conversationsResult.count || 0,
       usersPerMinute: parseFloat(usersPerMinute),
       totalPostings: postingsResult.count || 0,
+      totalMatchedQueries: matchedQueriesResult.count || 0,
       totalReachouts: reachoutsResult.count || 0,
       totalConnections: connectionsResult.count || 0,
       totalGroupConversations: groupConvsResult.count || 0,

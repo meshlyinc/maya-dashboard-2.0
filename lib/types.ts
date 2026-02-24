@@ -6,6 +6,7 @@ export interface AnalyticsMetrics {
   totalPostings: number // hirer_intake conversations
   totalReachouts: number // candidate_onboarding conversations
   totalFreelancerPortfolios: number // candidate_profiles
+  totalMatchedQueries: number // gig_postings with status 'matching'
   totalConnections: number // matches where connected_at is not null
   totalGroupConversations: number // conversations with type 'introduction'
   recentActivity: ActivityData[]

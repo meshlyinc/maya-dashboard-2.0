@@ -6,11 +6,12 @@ interface MetricCardProps {
   icon: LucideIcon
   trend?: string
   suffix?: string
+  onClick?: () => void
 }
 
-export default function MetricCard({ title, value, icon: Icon, trend, suffix }: MetricCardProps) {
+export default function MetricCard({ title, value, icon: Icon, trend, suffix, onClick }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-lg p-6">
+    <div className={`bg-white rounded-lg p-6${onClick ? ' cursor-pointer hover:shadow-md transition-shadow' : ''}`} onClick={onClick}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium text-gray-600">{title}</h3>
         <Icon className="w-5 h-5 text-gray-400" />
