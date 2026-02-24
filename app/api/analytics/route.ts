@@ -153,23 +153,47 @@ export async function GET(request: NextRequest) {
         .order('connected_at', { ascending: true }),
     ])
 
-    // Calculate users per minute (last 5 min, only users with non-archived convos)
+    // Run remaining queries in parallel: users per minute, chart users, and active user count
     const fiveMinAgo = subMinutes(now, 5)
-    const { data: recentConvUsers } = await supabase
-      .from('conversations')
-      .select('user_id')
-      .neq('status', 'archived')
-      .gte('created_at', fiveMinAgo.toISOString())
-    const usersLast5Min = new Set((recentConvUsers || []).map((c: any) => c.user_id).filter(Boolean)).size
 
+    // Helper: paginated fetch to collect all user_ids (avoids Supabase 1000-row limit)
+    async function fetchAllActiveUserIds(): Promise<Set<string>> {
+      const ids = new Set<string>()
+      let offset = 0
+      const BATCH = 1000
+      const MAX_BATCHES = 50 // Safety limit to prevent runaway loops
+      for (let i = 0; i < MAX_BATCHES; i++) {
+        const { data: batch } = await supabase
+          .from('conversations')
+          .select('user_id')
+          .neq('status', 'archived')
+          .gte('created_at', startDate.toISOString())
+          .order('id', { ascending: true })
+          .range(offset, offset + BATCH - 1)
+        if (!batch || batch.length === 0) break
+        batch.forEach((c: any) => { if (c.user_id) ids.add(c.user_id) })
+        if (batch.length < BATCH) break
+        offset += BATCH
+      }
+      return ids
+    }
+
+    const [recentConvUsersResult, chartUsersResult, activeUserIds] = await Promise.all([
+      supabase
+        .from('conversations')
+        .select('user_id')
+        .neq('status', 'archived')
+        .gte('created_at', fiveMinAgo.toISOString()),
+      supabase
+        .from('users')
+        .select('created_at')
+        .gte('created_at', chartStartDate.toISOString())
+        .order('created_at', { ascending: true }),
+      fetchAllActiveUserIds(),
+    ])
+
+    const usersLast5Min = new Set((recentConvUsersResult.data || []).map((c: any) => c.user_id).filter(Boolean)).size
     const usersPerMinute = usersLast5Min ? (usersLast5Min / 5).toFixed(2) : '0.00'
-
-    // Fetch chart users with chart time filter
-    const chartUsersResult = await supabase
-      .from('users')
-      .select('created_at')
-      .gte('created_at', chartStartDate.toISOString())
-      .order('created_at', { ascending: true })
 
     // Process activity data for chart (all metrics)
     const activityData = processActivityData(
@@ -180,24 +204,6 @@ export async function GET(request: NextRequest) {
       (recentConnectionsResult.data || []).map((c: any) => ({ created_at: c.connected_at })),
       chartTimeFilter
     )
-
-    // Count distinct users with at least one non-archived conversation (paginated to avoid 1000-row limit)
-    const activeUserIds = new Set<string>()
-    let userOffset = 0
-    const BATCH = 1000
-    while (true) {
-      const { data: batch } = await supabase
-        .from('conversations')
-        .select('user_id')
-        .neq('status', 'archived')
-        .gte('created_at', startDate.toISOString())
-        .order('id', { ascending: true })
-        .range(userOffset, userOffset + BATCH - 1)
-      if (!batch || batch.length === 0) break
-      batch.forEach((c: any) => { if (c.user_id) activeUserIds.add(c.user_id) })
-      if (batch.length < BATCH) break
-      userOffset += BATCH
-    }
 
     const metrics = {
       totalUsers: activeUserIds.size,

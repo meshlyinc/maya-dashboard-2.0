@@ -36,52 +36,83 @@ export default function Dashboard() {
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const fetchRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  const abortRef = useRef<AbortController | null>(null)
 
   const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
+  const FETCH_TIMEOUT_MS = 60 * 1000 // 60 seconds
 
   const fetchAllData = useCallback(async (isManual = false) => {
+    // Abort any previous in-flight fetch
+    if (abortRef.current) abortRef.current.abort('cancelled')
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
     if (isManual) setRefreshing(true)
-    else if (!metrics) setLoading(true)
+    setError(null)
+
+    const timeout = setTimeout(() => controller.abort('timeout'), FETCH_TIMEOUT_MS)
 
     try {
       const [analyticsRes, unansweredRes] = await Promise.all([
-        fetch(`/api/analytics?timeFilter=${timeFilter}`),
-        fetch('/api/unanswered'),
+        fetch(`/api/analytics?timeFilter=${timeFilter}`, { signal: controller.signal }),
+        fetch('/api/unanswered?countOnly=true', { signal: controller.signal }),
       ])
       const [analyticsData, unansweredData] = await Promise.all([
         analyticsRes.json(),
         unansweredRes.json(),
       ])
+      if (analyticsData.error) throw new Error(analyticsData.error)
       setMetrics(analyticsData)
       setUnansweredCount(unansweredData.count ?? 0)
       setLastRefreshed(new Date())
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
+    } catch (err: any) {
+      // Ignore aborts from a superseding fetch (e.g. timeFilter change or React strict mode)
+      if (controller.signal.aborted && controller.signal.reason === 'cancelled') return
+      console.error('Failed to fetch data:', err)
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Please try again.')
+      } else {
+        setError('Failed to load analytics. Please try again.')
+      }
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      clearTimeout(timeout)
+      if (abortRef.current === controller) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
-  }, [timeFilter, metrics])
+  }, [timeFilter])
+
+  // Keep ref in sync so interval always calls latest version
+  useEffect(() => {
+    fetchRef.current = () => fetchAllData()
+  }, [fetchAllData])
 
   // Fetch on mount and when time filter changes
   useEffect(() => {
     setLoading(true)
     fetchAllData()
+    return () => {
+      if (abortRef.current) abortRef.current.abort('cancelled')
+    }
   }, [timeFilter])
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh every 5 minutes (uses ref to avoid re-creating interval)
   useEffect(() => {
-    intervalRef.current = setInterval(() => fetchAllData(), AUTO_REFRESH_MS)
+    intervalRef.current = setInterval(() => fetchRef.current(), AUTO_REFRESH_MS)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [fetchAllData])
+  }, [])
 
   const handleRefresh = () => {
     // Reset the auto-refresh timer on manual refresh
     if (intervalRef.current) clearInterval(intervalRef.current)
-    intervalRef.current = setInterval(() => fetchAllData(), AUTO_REFRESH_MS)
+    intervalRef.current = setInterval(() => fetchRef.current(), AUTO_REFRESH_MS)
     fetchAllData(true)
   }
 
@@ -119,10 +150,32 @@ export default function Dashboard() {
     router.refresh()
   }
 
-  if (loading || !metrics) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-gray-500">Loading analytics...</div>
+      </div>
+    )
+  }
+
+  if (!metrics) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          {error ? (
+            <>
+              <p className="text-red-500 mb-4">{error}</p>
+              <button
+                onClick={() => { setLoading(true); fetchAllData() }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <div className="text-gray-500">Loading analytics...</div>
+          )}
+        </div>
       </div>
     )
   }

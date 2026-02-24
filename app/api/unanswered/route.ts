@@ -64,14 +64,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ unanswered: [], count: 0, page: 1, totalPages: 0, totalItems: 0 })
     }
 
-    const unansweredConvs = conversations.filter((c) => unansweredConvIds.includes(c.id))
-    const totalItems = unansweredConvs.length
-    const totalPages = Math.ceil(totalItems / PAGE_SIZE)
+    const totalItems = unansweredConvIds.length
 
-    // For count-only requests (used by dashboard metric)
+    // For count-only requests (used by dashboard metric) — skip user details & pagination
     if (countOnly) {
       return NextResponse.json({ count: totalItems })
     }
+
+    const unansweredConvs = conversations.filter((c) => unansweredConvIds.includes(c.id))
+    const totalPages = Math.ceil(totalItems / PAGE_SIZE)
 
     // Paginate
     const paginatedConvs = unansweredConvs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
