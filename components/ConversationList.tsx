@@ -50,9 +50,10 @@ export default function ConversationList({ type, onClose, onSelectConversation, 
   const [endDate, setEndDate] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [selectedStage, setSelectedStage] = useState(initialStage || '')
+  const FILTER_VALUES = ['card_sent', 'connected']
+  const [selectedStage, setSelectedStage] = useState(initialStage && !FILTER_VALUES.includes(initialStage) ? initialStage : '')
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({})
-  const [selectedFilter, setSelectedFilter] = useState('')
+  const [selectedFilter, setSelectedFilter] = useState(initialStage && FILTER_VALUES.includes(initialStage) ? initialStage : '')
   const [filterCounts, setFilterCounts] = useState<Record<string, number>>({})
   const [selectedStatus, setSelectedStatus] = useState('')
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})

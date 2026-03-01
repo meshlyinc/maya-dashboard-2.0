@@ -43,15 +43,22 @@ export async function GET(
       return NextResponse.json({ cards: [], gigTitle: gig.title })
     }
 
-    // 3. Fetch match_card messages from this conversation
-    const { data: cardMessages } = await supabase
+    // 3. Fetch messages from this conversation and filter match_card in JS
+    const { data: allConvMessages } = await supabase
       .from('messages')
       .select('id, metadata, created_at')
       .eq('conversation_id', convId)
-      .contains('metadata', { component: { type: 'match_card' } })
       .order('created_at', { ascending: false })
 
-    if (!cardMessages || cardMessages.length === 0) {
+    const cardMessages = (allConvMessages || []).filter((m: any) => {
+      let meta = m.metadata
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(meta); m.metadata = meta } catch { return false }
+      }
+      return meta?.component?.type === 'match_card'
+    })
+
+    if (cardMessages.length === 0) {
       return NextResponse.json({ cards: [], gigTitle: gig.title })
     }
 

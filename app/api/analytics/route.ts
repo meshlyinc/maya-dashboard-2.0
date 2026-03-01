@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       portfoliosResult,
       connectionsResult,
       groupConvsResult,
+      feedbackResult,
       recentUsersResult
     ] = await Promise.all([
       // Placeholder for users count (computed separately below)
@@ -74,12 +75,11 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .gte('created_at', startDate.toISOString()),
 
-      // Matched queries (gig_postings with status 'matching')
+      // Matched queries (gig_postings with status 'matching' — all time, not filtered by time range)
       supabase
         .from('gig_postings')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'matching')
-        .gte('created_at', startDate.toISOString()),
+        .eq('status', 'matching'),
 
       // Reachouts (matches that have an outreach message)
       supabase
@@ -108,6 +108,11 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact', head: true })
         .eq('conversation_type', 'introduction'),
 
+      // User feedback
+      supabase
+        .from('user_feedback')
+        .select('id', { count: 'exact', head: true }),
+
       // Recent users for activity chart (uses main timeFilter initially, will be re-fetched for chart)
       supabase
         .from('users')
@@ -130,38 +135,7 @@ export async function GET(request: NextRequest) {
       default: chartStartDate = subHours(now, 24)
     }
 
-    // Fetch additional chart data in parallel
-    const [
-      recentMessagesResult,
-      recentConvsResult,
-      recentReachoutsResult,
-      recentConnectionsResult
-    ] = await Promise.all([
-      supabase
-        .from('messages')
-        .select('created_at')
-        .gte('created_at', chartStartDate.toISOString())
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('conversations')
-        .select('created_at')
-        .gte('created_at', chartStartDate.toISOString())
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('matches')
-        .select('created_at')
-        .not('outreach_message', 'is', null)
-        .gte('created_at', chartStartDate.toISOString())
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('matches')
-        .select('connected_at')
-        .not('connected_at', 'is', null)
-        .gte('connected_at', chartStartDate.toISOString())
-        .order('connected_at', { ascending: true }),
-    ])
-
-    // Run remaining queries in parallel: users per minute, chart users, and active user count
+    // Run users-per-minute + active user IDs in parallel with chart data
     const fiveMinAgo = subMinutes(now, 5)
 
     // Helper: paginated fetch to collect all user_ids (avoids Supabase 1000-row limit)
@@ -169,7 +143,7 @@ export async function GET(request: NextRequest) {
       const ids = new Set<string>()
       let offset = 0
       const BATCH = 1000
-      const MAX_BATCHES = 50 // Safety limit to prevent runaway loops
+      const MAX_BATCHES = 50
       for (let i = 0; i < MAX_BATCHES; i++) {
         const { data: batch } = await supabase
           .from('conversations')
@@ -186,18 +160,57 @@ export async function GET(request: NextRequest) {
       return ids
     }
 
-    const [recentConvUsersResult, chartUsersResult, activeUserIds] = await Promise.all([
+    // Helper: paginated fetch for chart timestamps (avoids 1000-row default limit)
+    async function fetchAllTimestamps(
+      table: string,
+      column: string,
+      since: string,
+      extraFilters?: (q: any) => any
+    ): Promise<{ created_at: string }[]> {
+      const results: { created_at: string }[] = []
+      const BATCH = 1000
+      const MAX_BATCHES = 100
+      for (let i = 0; i < MAX_BATCHES; i++) {
+        let q = supabase
+          .from(table)
+          .select(column)
+          .gte(column, since)
+          .order(column, { ascending: true })
+          .range(i * BATCH, (i + 1) * BATCH - 1)
+        if (extraFilters) q = extraFilters(q)
+        const { data } = await q
+        if (!data || data.length === 0) break
+        data.forEach((r: any) => results.push({ created_at: r[column] }))
+        if (data.length < BATCH) break
+      }
+      return results
+    }
+
+    const chartSince = chartStartDate.toISOString()
+
+    // Fetch all chart data + auxiliary queries in parallel
+    const [
+      recentConvUsersResult,
+      activeUserIds,
+      chartUsers,
+      chartMessages,
+      chartConvs,
+      chartReachouts,
+      chartConnections,
+    ] = await Promise.all([
       supabase
         .from('conversations')
         .select('user_id')
         .neq('status', 'archived')
         .gte('created_at', fiveMinAgo.toISOString()),
-      supabase
-        .from('users')
-        .select('created_at')
-        .gte('created_at', chartStartDate.toISOString())
-        .order('created_at', { ascending: true }),
       fetchAllActiveUserIds(),
+      fetchAllTimestamps('users', 'created_at', chartSince),
+      fetchAllTimestamps('messages', 'created_at', chartSince),
+      fetchAllTimestamps('conversations', 'created_at', chartSince),
+      fetchAllTimestamps('matches', 'created_at', chartSince,
+        q => q.not('outreach_message', 'is', null)),
+      fetchAllTimestamps('matches', 'connected_at', chartSince,
+        q => q.not('connected_at', 'is', null)),
     ])
 
     const usersLast5Min = new Set((recentConvUsersResult.data || []).map((c: any) => c.user_id).filter(Boolean)).size
@@ -205,11 +218,11 @@ export async function GET(request: NextRequest) {
 
     // Process activity data for chart (all metrics)
     const activityData = processActivityData(
-      chartUsersResult.data || [],
-      recentMessagesResult.data || [],
-      recentConvsResult.data || [],
-      recentReachoutsResult.data || [],
-      (recentConnectionsResult.data || []).map((c: any) => ({ created_at: c.connected_at })),
+      chartUsers,
+      chartMessages,
+      chartConvs,
+      chartReachouts,
+      chartConnections,
       chartTimeFilter
     )
 
@@ -223,6 +236,7 @@ export async function GET(request: NextRequest) {
       totalReachouts: reachoutsResult.count || 0,
       totalConnections: connectionsResult.count || 0,
       totalGroupConversations: groupConvsResult.count || 0,
+      totalFeedback: feedbackResult.count || 0,
       totalFreelancerPortfolios: portfoliosResult.count || 0,
       recentActivity: activityData,
       timeFilter

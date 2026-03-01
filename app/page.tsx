@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2, CheckCircle, UsersRound } from 'lucide-react'
+import { Users, MessageSquare, MessageCircle, TrendingUp, Briefcase, UserCheck, FolderKanban, AlertTriangle, LogOut, RefreshCw, Link2, CheckCircle, UsersRound, MessageSquareText } from 'lucide-react'
 import { AnalyticsMetrics, ConversationDetail } from '@/lib/types'
 import MetricCard from '@/components/MetricCard'
 import ActivityChart from '@/components/ActivityChart'
@@ -17,6 +17,7 @@ import ReadyForMatchingModal from '@/components/ReadyForMatchingModal'
 import PostingCardsModal from '@/components/PostingCardsModal'
 import PortfoliosModal from '@/components/PortfoliosModal'
 import GroupConversationsModal from '@/components/GroupConversationsModal'
+import FeedbackModal from '@/components/FeedbackModal'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [viewCardsGigId, setViewCardsGigId] = useState<string | null>(null)
   const [showPortfolios, setShowPortfolios] = useState(false)
   const [showGroupConversations, setShowGroupConversations] = useState(false)
+  const [showFeedback, setShowFeedback] = useState(false)
   const [unansweredCount, setUnansweredCount] = useState<number | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
@@ -229,7 +231,7 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <MetricCard
             title="User Count"
             value={metrics.totalUsers.toLocaleString()}
@@ -259,6 +261,12 @@ export default function Dashboard() {
             value={metrics.usersPerMinute.toFixed(2)}
             icon={TrendingUp}
             suffix="/min"
+          />
+          <MetricCard
+            title="User Feedback"
+            value={metrics.totalFeedback.toLocaleString()}
+            icon={MessageSquareText}
+            onClick={() => setShowFeedback(true)}
           />
         </div>
 
@@ -426,6 +434,14 @@ export default function Dashboard() {
         <GroupConversationsModal
           onClose={() => setShowGroupConversations(false)}
           onSelectConversation={(id) => { setSelectedConversation(id) }}
+          onSelectUser={(userId) => { setSelectedUserId(userId) }}
+        />
+      )}
+
+      {/* Feedback Modal */}
+      {showFeedback && (
+        <FeedbackModal
+          onClose={() => setShowFeedback(false)}
           onSelectUser={(userId) => { setSelectedUserId(userId) }}
         />
       )}

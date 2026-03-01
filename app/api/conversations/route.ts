@@ -19,27 +19,46 @@ export async function GET(request: NextRequest) {
 
   try {
     if (type === 'posting') {
+      // --- Precompute card-sent gig IDs using inner join (no large IN clauses) ---
+      const cardCountByGigIdGlobal: Record<string, number> = {}
+      let totalMsgsFetched = 0
+      const MSG_BATCH = 1000
+      const MAX_MSG_BATCHES = 50
+      for (let i = 0; i < MAX_MSG_BATCHES; i++) {
+        const { data: msgs, error: msgErr } = await supabase
+          .from('messages')
+          .select('metadata, conversations!inner(gig_id)')
+          .not('conversations.gig_id', 'is', null)
+          .not('metadata', 'is', null)
+          .order('id', { ascending: true })
+          .range(i * MSG_BATCH, (i + 1) * MSG_BATCH - 1)
+
+        if (msgErr) {
+          console.error('Card detection error:', msgErr)
+          break
+        }
+        if (!msgs || msgs.length === 0) break
+        totalMsgsFetched += msgs.length
+        msgs.forEach((m: any) => {
+          let meta = m.metadata
+          if (typeof meta === 'string') {
+            try { meta = JSON.parse(meta) } catch { return }
+          }
+          if (meta?.component?.type === 'match_card') {
+            const gigId = (m.conversations as any)?.gig_id
+            if (gigId) cardCountByGigIdGlobal[gigId] = (cardCountByGigIdGlobal[gigId] || 0) + 1
+          }
+        })
+        if (msgs.length < MSG_BATCH) break
+      }
+
+      const allCardSentGigIds = Object.keys(cardCountByGigIdGlobal)
+      console.log(`[Card Detection] ${totalMsgsFetched} msgs with metadata scanned, ${allCardSentGigIds.length} gigs with cards`)
+
       // If filter is set, first find gig_ids that match the filter criteria
       let filteredGigIds: string[] | null = null
       if (filter === 'card_sent') {
-        // Postings where the conversation has at least one match_card message
-        // 1. Find conversation_ids that have match_card messages
-        const { data: cardMessages } = await supabase
-          .from('messages')
-          .select('conversation_id')
-          .contains('metadata', { component: { type: 'match_card' } })
-        const cardConvIds = [...new Set((cardMessages || []).map((m: any) => m.conversation_id).filter(Boolean))]
-        // 2. Find gig_ids for those conversations
-        if (cardConvIds.length > 0) {
-          const { data: convs } = await supabase
-            .from('conversations')
-            .select('gig_id')
-            .in('id', cardConvIds)
-            .not('gig_id', 'is', null)
-          filteredGigIds = [...new Set((convs || []).map((c: any) => c.gig_id).filter(Boolean))]
-        } else {
-          filteredGigIds = []
-        }
+        filteredGigIds = allCardSentGigIds.length > 0 ? allCardSentGigIds : []
       } else if (filter === 'connected') {
         // Postings where at least one match has connected_at set (hirer-candidate connected)
         const { data: connectedMatches } = await supabase
@@ -139,24 +158,8 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Count match_card messages per posting conversation
-      const convIdToGigId: Record<string, string> = {}
-      Object.entries(gigConvMap).forEach(([gigId, conv]) => {
-        convIdToGigId[conv.id] = gigId
-      })
-      const convIdsForCards = Object.keys(convIdToGigId)
-      const cardCountByGigId: Record<string, number> = {}
-      if (convIdsForCards.length > 0) {
-        const { data: cardMsgs } = await supabase
-          .from('messages')
-          .select('conversation_id')
-          .in('conversation_id', convIdsForCards)
-          .contains('metadata', { component: { type: 'match_card' } })
-        cardMsgs?.forEach((m: any) => {
-          const gId = convIdToGigId[m.conversation_id]
-          if (gId) cardCountByGigId[gId] = (cardCountByGigId[gId] || 0) + 1
-        })
-      }
+      // Card counts per gig (use precomputed global card counts)
+      const cardCountByGigId = cardCountByGigIdGlobal
 
       const conversations = gigPostings.map(gig => ({
         id: gig.id,
@@ -200,30 +203,15 @@ export async function GET(request: NextRequest) {
           const { count } = await sq
           stageCounts[s] = count || 0
         }),
-        // Card Sent count (postings whose conversation has match_card messages)
+        // Card Sent count (use precomputed allCardSentGigIds, filtered by date/search)
         (async () => {
-          const { data: cardMsgs } = await supabase
-            .from('messages')
-            .select('conversation_id')
-            .contains('metadata', { component: { type: 'match_card' } })
-          const cardConvIds = [...new Set((cardMsgs || []).map((m: any) => m.conversation_id).filter(Boolean))]
-          if (cardConvIds.length > 0) {
-            const { data: convs } = await supabase
-              .from('conversations')
-              .select('gig_id')
-              .in('id', cardConvIds)
-              .not('gig_id', 'is', null)
-            const cardGigIds = [...new Set((convs || []).map((c: any) => c.gig_id).filter(Boolean))]
-            if (cardGigIds.length > 0) {
-              let sq = supabase.from('gig_postings').select('*', { count: 'exact', head: true }).in('id', cardGigIds)
-              if (startDate) sq = sq.gte('created_at', startDate)
-              if (endDate) sq = sq.lte('created_at', `${endDate}T23:59:59.999Z`)
-              if (search) sq = sq.ilike('title', `%${search}%`)
-              const { count } = await sq
-              filterCounts['card_sent'] = count || 0
-            } else {
-              filterCounts['card_sent'] = 0
-            }
+          if (allCardSentGigIds.length > 0) {
+            let sq = supabase.from('gig_postings').select('*', { count: 'exact', head: true }).in('id', allCardSentGigIds)
+            if (startDate) sq = sq.gte('created_at', startDate)
+            if (endDate) sq = sq.lte('created_at', `${endDate}T23:59:59.999Z`)
+            if (search) sq = sq.ilike('title', `%${search}%`)
+            const { count } = await sq
+            filterCounts['card_sent'] = count || 0
           } else {
             filterCounts['card_sent'] = 0
           }

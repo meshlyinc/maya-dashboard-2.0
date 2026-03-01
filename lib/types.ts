@@ -9,6 +9,7 @@ export interface AnalyticsMetrics {
   totalMatchedQueries: number // gig_postings with status 'matching'
   totalConnections: number // matches where connected_at is not null
   totalGroupConversations: number // conversations with type 'introduction'
+  totalFeedback: number // user_feedback entries
   recentActivity: ActivityData[]
 }
 
